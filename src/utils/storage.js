@@ -59,14 +59,22 @@ export const setActiveGroupId = (groupId) => {
 
 // Financial Calculations Helper
 export const computeGroupFinancials = (group) => {
-  if (!group) return { totalCollected: 0, totalExpenses: 0, netBalance: 0, memberStats: [], dailyLedger: [] };
+  if (!group) return { totalCollected: 0, totalExpenses: 0, netBalance: 0, memberStats: [], dailyLedger: [], totalPledged: 0, pledgeOutstanding: 0, pledgeCount: 0, pledgeFulfilledCount: 0 };
 
   const collections = group.collections || [];
   const expenses = group.expenses || [];
+  const pledges = group.pledges || [];
 
   const totalCollected = collections.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const netBalance = totalCollected - totalExpenses;
+
+  // Pledge Tracking Calculations
+  const totalPledged = pledges.reduce((sum, p) => sum + (Number(p.pledgeAmount) || 0), 0);
+  const totalPledgeCollected = pledges.reduce((sum, p) => sum + (Number(p.collectedAmount) || 0), 0);
+  const pledgeOutstanding = Math.max(0, totalPledged - totalPledgeCollected);
+  const pledgeFulfilledCount = pledges.filter(p => p.status === 'fulfilled').length;
+  const pledgePendingCount = pledges.filter(p => p.status !== 'fulfilled').length;
 
   // Member Leaderboard Calculation
   const memberMap = {};
@@ -121,7 +129,13 @@ export const computeGroupFinancials = (group) => {
     memberStats,
     dailyLedger,
     donorCount: collections.length,
-    expenseCount: expenses.length
+    expenseCount: expenses.length,
+    totalPledged,
+    totalPledgeCollected,
+    pledgeOutstanding,
+    pledgeCount: pledges.length,
+    pledgeFulfilledCount,
+    pledgePendingCount
   };
 };
 
@@ -132,4 +146,92 @@ export const generateNextReceiptNo = (group) => {
 
 export const generateGroupCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// Expense Category Breakdown (for charts)
+export const computeExpenseCategoryBreakdown = (group) => {
+  const expenses = group?.expenses || [];
+  const total = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+  const byCategory = {};
+  expenses.forEach(e => {
+    const catId = e.category || 'misc';
+    if (!byCategory[catId]) byCategory[catId] = 0;
+    byCategory[catId] += Number(e.amount) || 0;
+  });
+
+  return Object.keys(byCategory)
+    .map(catId => {
+      const catObj = EXPENSE_CATEGORIES.find(c => c.id === catId) || EXPENSE_CATEGORIES[7];
+      const amount = byCategory[catId];
+      return {
+        id: catId,
+        label: catObj.label,
+        icon: catObj.icon,
+        color: catObj.color,
+        amount,
+        percent: total > 0 ? Math.round((amount / total) * 100) : 0
+      };
+    })
+    .sort((a, b) => b.amount - a.amount);
+};
+
+// Daily Collections Trend (for line/bar charts)
+export const computeCollectionsTrend = (group) => {
+  const collections = group?.collections || [];
+  const dateMap = {};
+  collections.forEach(c => {
+    const d = c.date || new Date().toISOString().split('T')[0];
+    dateMap[d] = (dateMap[d] || 0) + (Number(c.amount) || 0);
+  });
+
+  const sortedDates = Object.keys(dateMap).sort();
+  let cumulative = 0;
+  return sortedDates.map(d => {
+    cumulative += dateMap[d];
+    return { date: d, amount: dateMap[d], cumulative };
+  });
+};
+
+// Top Collector Weekly Comparison (for grouped bar chart)
+export const computeCollectorWeeklyTrend = (group, topN = 4) => {
+  const collections = group?.collections || [];
+  if (collections.length === 0) return { weeks: [], series: [] };
+
+  const getWeekLabel = (dateStr) => {
+    const d = new Date(dateStr || Date.now());
+    const jan1 = new Date(d.getFullYear(), 0, 1);
+    const dayOfYear = Math.floor((d - jan1) / 86400000) + 1;
+    const week = Math.ceil((dayOfYear + jan1.getDay()) / 7);
+    return `${d.getFullYear()}-W${week}`;
+  };
+
+  // Determine top N collectors by total
+  const totals = {};
+  collections.forEach(c => {
+    const name = c.collectedBy || 'Unassigned';
+    totals[name] = (totals[name] || 0) + (Number(c.amount) || 0);
+  });
+  const topCollectors = Object.keys(totals).sort((a, b) => totals[b] - totals[a]).slice(0, topN);
+
+  // Bucket by week per collector
+  const weekSet = new Set();
+  const weekCollectorMap = {};
+  collections.forEach(c => {
+    if (!topCollectors.includes(c.collectedBy)) return;
+    const wk = getWeekLabel(c.date);
+    weekSet.add(wk);
+    if (!weekCollectorMap[wk]) weekCollectorMap[wk] = {};
+    weekCollectorMap[wk][c.collectedBy] = (weekCollectorMap[wk][c.collectedBy] || 0) + (Number(c.amount) || 0);
+  });
+
+  const weeks = Array.from(weekSet).sort();
+  const palette = ['#f59e0b', '#34d399', '#60a5fa', '#f87171', '#a78bfa', '#fb923c'];
+  const series = topCollectors.map((name, idx) => ({
+    name,
+    color: palette[idx % palette.length],
+    data: weeks.map(wk => weekCollectorMap[wk]?.[name] || 0)
+  }));
+
+  return { weeks, series };
 };

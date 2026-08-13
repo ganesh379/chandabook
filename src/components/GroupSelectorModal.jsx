@@ -10,16 +10,19 @@ import {
   Image as ImageIcon 
 } from 'lucide-react';
 import { FESTIVAL_TYPES, generateGroupCode } from '../utils/storage';
+import { fetchGroupByCode } from '../firebase';
 
-export default function GroupSelectorModal({ 
-  groupsMap, 
-  activeGroupId, 
-  onSelectGroup, 
-  onCreateGroup, 
+export default function GroupSelectorModal({
+  groupsMap,
+  activeGroupId,
+  onSelectGroup,
+  onCreateGroup,
+  onImportGroup,
   onClose,
   initialMode = 'list'
 }) {
   const [mode, setMode] = useState(initialMode); // 'list' | 'create' | 'join'
+  const [isJoining, setIsJoining] = useState(false);
   
   // Create form state
   const [groupName, setGroupName] = useState('');
@@ -80,7 +83,7 @@ export default function GroupSelectorModal({
     onClose();
   };
 
-  const handleJoinSubmit = (e) => {
+  const handleJoinSubmit = async (e) => {
     e.preventDefault();
     setJoinError('');
     const codeClean = joinCode.trim();
@@ -89,6 +92,17 @@ export default function GroupSelectorModal({
     const matchedGroup = groupsList.find(g => g.code === codeClean);
     if (matchedGroup) {
       onSelectGroup(matchedGroup.id);
+      onClose();
+      return;
+    }
+
+    // Not cached locally yet - try Firestore directly (fresh device)
+    setIsJoining(true);
+    const remoteGroup = await fetchGroupByCode(codeClean);
+    setIsJoining(false);
+
+    if (remoteGroup && onImportGroup) {
+      onImportGroup(remoteGroup);
       onClose();
     } else {
       setJoinError('Invalid 6-digit Group Code. Please check with your committee leader.');
@@ -403,8 +417,8 @@ export default function GroupSelectorModal({
               </p>
             )}
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }}>
-              Join Group
+            <button type="submit" disabled={isJoining} className="btn btn-primary" style={{ width: '100%', padding: '12px' }}>
+              {isJoining ? 'Searching...' : 'Join Group'}
             </button>
           </form>
         )}

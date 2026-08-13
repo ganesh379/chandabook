@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
-import { 
-  Download, 
-  Upload, 
-  Trash2, 
-  RefreshCw, 
-  Save, 
-  Lock, 
+import {
+  Download,
+  Upload,
+  Trash2,
+  RefreshCw,
+  Save,
+  Lock,
   AlertTriangle,
   Building2,
-  Database
+  Database,
+  FileText,
+  Globe,
+  Copy,
+  Check,
+  Share2
 } from 'lucide-react';
 import { FESTIVAL_TYPES } from '../utils/storage';
+import { generateFinancialStatementPDF } from '../utils/pdfStatement';
 
 export default function ReportsSettings({ 
   group, 
@@ -26,6 +32,33 @@ export default function ReportsSettings({
   const [upiId, setUpiId] = useState(group?.upiId || '');
   const [adminPasscode, setAdminPasscode] = useState(group?.adminPasscode || '1234');
   const [savedMsg, setSavedMsg] = useState('');
+  const [publicLinkCopied, setPublicLinkCopied] = useState(false);
+
+  const publicTransparencyUrl = `${window.location.origin}/?public=${group?.code}`;
+
+  const handleCopyPublicLink = () => {
+    navigator.clipboard.writeText(publicTransparencyUrl);
+    setPublicLinkCopied(true);
+    setTimeout(() => setPublicLinkCopied(false), 2500);
+  };
+
+  const handleSharePublicLink = () => {
+    const text = encodeURIComponent(
+      `🚩 *${group?.name || 'ChandaBook'} - Public Chanda Report* 🚩\n` +
+      `View live donation totals & expenses (no login needed):\n${publicTransparencyUrl}`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
+
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const handleDownloadPdf = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      await generateFinancialStatementPDF(group);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   // Delete Group Admin Passcode Verification State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -222,6 +255,14 @@ export default function ReportsSettings({
             </div>
           </button>
 
+          <button onClick={handleDownloadPdf} disabled={isGeneratingPdf} className="btn btn-secondary" style={{ padding: '14px', gap: '8px' }}>
+            <FileText size={18} style={{ color: '#f59e0b' }} />
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{isGeneratingPdf ? 'Generating...' : 'Official PDF Statement'}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Signed handover-ready report</div>
+            </div>
+          </button>
+
           <button onClick={handleBackupJSON} className="btn btn-secondary" style={{ padding: '14px', gap: '8px' }}>
             <Download size={18} style={{ color: 'var(--primary-500)' }} />
             <div style={{ textAlign: 'left' }}>
@@ -238,6 +279,26 @@ export default function ReportsSettings({
             </div>
             <input type="file" accept=".json" onChange={handleRestoreJSON} style={{ display: 'none' }} />
           </label>
+        </div>
+      </div>
+
+      {/* PUBLIC TRANSPARENCY REPORT */}
+      <div className="glass-card" style={{ padding: '24px' }}>
+        <h3 style={{ fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Globe size={18} style={{ color: '#06b6d4' }} /> Public Transparency Report
+        </h3>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+          Share this read-only link with the whole colony. It shows totals, expenses & top contributor amounts — never donor phone numbers or addresses. No login required to view.
+        </p>
+
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button onClick={handleCopyPublicLink} className="btn btn-secondary" style={{ gap: '6px' }}>
+            {publicLinkCopied ? <Check size={16} style={{ color: '#34d399' }} /> : <Copy size={16} />}
+            {publicLinkCopied ? 'Link Copied!' : 'Copy Public Link'}
+          </button>
+          <button onClick={handleSharePublicLink} className="btn btn-whatsapp" style={{ gap: '6px' }}>
+            <Share2 size={16} /> Share on WhatsApp
+          </button>
         </div>
       </div>
 

@@ -9,7 +9,6 @@ import {
   ImageIcon,
   ShieldCheck
 } from 'lucide-react';
-import html2canvas from 'html2canvas';
 import { FESTIVAL_TYPES } from '../utils/storage';
 
 export default function ReceiptModal({ collection, group, onClose }) {
@@ -54,6 +53,7 @@ export default function ReceiptModal({ collection, group, onClose }) {
     const renderReceiptImage = async () => {
       if (!receiptRef.current) return;
       try {
+        const { default: html2canvas } = await import('html2canvas');
         const canvas = await html2canvas(receiptRef.current, {
           scale: 1.5, // Lightweight high-quality scale (prevents memory crash)
           useCORS: true,

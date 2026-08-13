@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   Coins, 
   Receipt, 
@@ -21,7 +21,7 @@ export default function Dashboard({
   onSelectTab, 
   onViewReceipt 
 }) {
-  const financials = computeGroupFinancials(group);
+  const financials = useMemo(() => computeGroupFinancials(group), [group]);
   const activeFestival = FESTIVAL_TYPES.find(f => f.id === group?.festivalType) || FESTIVAL_TYPES[0];
 
   const targetGoal = group?.targetGoal || 75000;
@@ -31,11 +31,13 @@ export default function Dashboard({
   const topCollector = financials.memberStats[0] || { name: 'None', total: 0 };
 
   // Recent 5 activities combined
-  const collections = (group?.collections || []).map(c => ({ ...c, type: 'collection' }));
-  const expenses = (group?.expenses || []).map(e => ({ ...e, type: 'expense' }));
-  const combinedRecent = [...collections, ...expenses]
-    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-    .slice(0, 5);
+  const combinedRecent = useMemo(() => {
+    const collections = (group?.collections || []).map(c => ({ ...c, type: 'collection' }));
+    const expenses = (group?.expenses || []).map(e => ({ ...e, type: 'expense' }));
+    return [...collections, ...expenses]
+      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+      .slice(0, 5);
+  }, [group]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

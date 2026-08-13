@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Receipt, 
   Plus, 
@@ -19,18 +19,21 @@ export default function ChandaList({ group, onOpenAddChanda, onDeleteCollection,
 
   const collections = group?.collections || [];
 
-  const filteredCollections = collections.filter(c => {
-    const matchesSearch = 
-      (c.donorName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.receiptNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.phone || '').includes(searchTerm);
+  const filteredCollections = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return collections.filter(c => {
+      const matchesSearch =
+        (c.donorName || '').toLowerCase().includes(term) ||
+        (c.receiptNo || '').toLowerCase().includes(term) ||
+        (c.address || '').toLowerCase().includes(term) ||
+        (c.phone || '').includes(searchTerm);
 
-    const matchesPayment = paymentFilter === 'ALL' || c.paymentMode === paymentFilter;
-    const matchesCollector = collectorFilter === 'ALL' || c.collectedBy === collectorFilter;
+      const matchesPayment = paymentFilter === 'ALL' || c.paymentMode === paymentFilter;
+      const matchesCollector = collectorFilter === 'ALL' || c.collectedBy === collectorFilter;
 
-    return matchesSearch && matchesPayment && matchesCollector;
-  }).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      return matchesSearch && matchesPayment && matchesCollector;
+    }).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  }, [collections, searchTerm, paymentFilter, collectorFilter]);
 
   const totalFilteredAmount = filteredCollections.reduce((sum, c) => sum + Number(c.amount), 0);
 

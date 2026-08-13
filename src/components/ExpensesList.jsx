@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Receipt, 
   Plus, 
@@ -32,15 +32,18 @@ export default function ExpensesList({ group, onAddExpense, onDeleteExpense, aut
 
   const expenses = group?.expenses || [];
 
-  const filtered = expenses.filter(e => {
-    const matchesCat = activeCategory === 'ALL' || e.category === activeCategory;
-    const matchesSearch = 
-      (e.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (e.vendor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (e.notes || '').toLowerCase().includes(searchTerm.toLowerCase());
+  const filtered = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return expenses.filter(e => {
+      const matchesCat = activeCategory === 'ALL' || e.category === activeCategory;
+      const matchesSearch =
+        (e.title || '').toLowerCase().includes(term) ||
+        (e.vendor || '').toLowerCase().includes(term) ||
+        (e.notes || '').toLowerCase().includes(term);
 
-    return matchesCat && matchesSearch;
-  }).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      return matchesCat && matchesSearch;
+    }).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  }, [expenses, activeCategory, searchTerm]);
 
   const totalFilteredExpenses = filtered.reduce((sum, e) => sum + Number(e.amount), 0);
 

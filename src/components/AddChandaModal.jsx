@@ -13,8 +13,31 @@ export default function AddChandaModal({ group, onAddCollection, onClose, onView
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [openReceiptAfterSave, setOpenReceiptAfterSave] = useState(true);
+  const [autoSendWhatsApp, setAutoSendWhatsApp] = useState(true);
 
   const quickAmounts = [116, 501, 1116, 2016, 5016, 10016];
+
+  // Opens WhatsApp with a pre-filled thank-you text receipt. This is the
+  // closest an unauthenticated static site can get to "auto-send" — WhatsApp
+  // doesn't allow a website to silently deliver a message on someone's
+  // behalf, so the donor's phone opens with one tap left to hit send.
+  const sendWhatsAppTextReceipt = (collection) => {
+    if (!collection.phone) return;
+    const text = encodeURIComponent(
+      `🙏 *CHANDA DONATION RECEIVED* 🙏\n` +
+      `*${group?.name || 'ChandaBook'}*\n` +
+      `-----------------------------------\n` +
+      `Dear *${collection.donorName}*,\n` +
+      `Thank you for your generous contribution!\n\n` +
+      `🧾 Receipt No: *${collection.receiptNo}*\n` +
+      `💰 Amount: *${group?.currency || '₹'}${Number(collection.amount).toLocaleString('en-IN')}*\n` +
+      `📅 Date: ${collection.date}\n` +
+      `-----------------------------------\n` +
+      `🙏 *May Lord Ganesha bless your family with health & prosperity!* 🙏\n` +
+      `ChandaBook Digital Receipt`
+    );
+    window.open(`https://api.whatsapp.com/send?phone=91${collection.phone.replace(/\D/g, '')}&text=${text}`, '_blank');
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -46,6 +69,10 @@ export default function AddChandaModal({ group, onAddCollection, onClose, onView
     } catch (e) {}
 
     onAddCollection(newCollection);
+
+    if (autoSendWhatsApp && newCollection.phone) {
+      sendWhatsAppTextReceipt(newCollection);
+    }
 
     if (openReceiptAfterSave) {
       onViewReceipt(newCollection);
@@ -187,8 +214,23 @@ export default function AddChandaModal({ group, onAddCollection, onClose, onView
             />
           </div>
 
+          {phone.trim() && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <input
+                type="checkbox"
+                id="autoWhatsAppCheck"
+                checked={autoSendWhatsApp}
+                onChange={e => setAutoSendWhatsApp(e.target.checked)}
+                style={{ width: '16px', height: '16px', accentColor: '#25d366' }}
+              />
+              <label htmlFor="autoWhatsAppCheck" style={{ fontSize: '0.8rem', color: 'var(--text-main)', cursor: 'pointer' }}>
+                📱 Auto-open WhatsApp with thank-you text receipt on save
+              </label>
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <input 
+            <input
               type="checkbox"
               id="openReceiptCheck"
               checked={openReceiptAfterSave}

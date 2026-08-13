@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   BookOpen, 
   TrendingUp, 
@@ -12,7 +12,7 @@ import {
 import { computeGroupFinancials } from '../utils/storage';
 
 export default function DailyLedger({ group }) {
-  const financials = computeGroupFinancials(group);
+  const financials = useMemo(() => computeGroupFinancials(group), [group]);
   const dailyLedger = financials.dailyLedger;
 
   const handlePrintPDF = () => {

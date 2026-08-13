@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Trophy, 
   Users, 
@@ -35,7 +35,7 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
   const [selectedRoleInput, setSelectedRoleInput] = useState('Volunteer');
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const financials = computeGroupFinancials(group);
+  const financials = useMemo(() => computeGroupFinancials(group), [group]);
   const memberStats = financials.memberStats;
 
   // Generate 1-Click WhatsApp Member Invite Link

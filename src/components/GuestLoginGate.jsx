@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
-import { Key, ShieldCheck, Lock, Users, Sparkles, Building2, UserCheck } from 'lucide-react';
+import { Key, ShieldCheck, Lock, Users, Sparkles, Building2, UserCheck, Receipt } from 'lucide-react';
 
-export default function GuestLoginGate({ currentUser, onGoogleSignIn, onJoinViaCode }) {
+export default function GuestLoginGate({ currentUser, onGoogleSignIn, onJoinViaCode, onOpenReceiptLookup }) {
   const [joinCode, setJoinCode] = useState('');
   const [groupPasscode, setGroupPasscode] = useState('');
   const [joinError, setJoinError] = useState('');
   const [showCodeBox, setShowCodeBox] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
 
-  const handleCodeSubmit = (e) => {
+  const handleCodeSubmit = async (e) => {
     e.preventDefault();
     setJoinError('');
     const cleanCode = joinCode.trim();
     if (!cleanCode) return;
 
-    const success = onJoinViaCode(cleanCode, groupPasscode.trim());
+    setIsJoining(true);
+    const success = await onJoinViaCode(cleanCode, groupPasscode.trim());
+    setIsJoining(false);
     if (!success) {
       setJoinError('Invalid Group Code or Passcode. Please check with your committee leader.');
     }
@@ -142,10 +145,20 @@ export default function GuestLoginGate({ currentUser, onGoogleSignIn, onJoinViaC
                 </p>
               )}
 
-              <button type="submit" className="btn btn-secondary" style={{ width: '100%', padding: '10px' }}>
-                Join Group via Code
+              <button type="submit" disabled={isJoining} className="btn btn-secondary" style={{ width: '100%', padding: '10px' }}>
+                {isJoining ? 'Searching...' : 'Join Group via Code'}
               </button>
             </form>
+          )}
+
+          {onOpenReceiptLookup && (
+            <button
+              type="button"
+              onClick={onOpenReceiptLookup}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600, marginTop: '18px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Receipt size={14} /> Already donated? Find my receipt
+            </button>
           )}
         </div>
       ) : null}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import Navbar from './components/Navbar';
 import MobileBottomNav from './components/MobileBottomNav';
 import GuestLoginGate from './components/GuestLoginGate';
@@ -13,23 +14,38 @@ import ReceiptModal from './components/ReceiptModal';
 import ReportsSettings from './components/ReportsSettings';
 import GroupSelectorModal from './components/GroupSelectorModal';
 import PrasadamSchedule from './components/PrasadamSchedule';
+import LadduAuction from './components/LadduAuction';
+import PledgesList from './components/PledgesList';
+import AnalyticsCharts from './components/AnalyticsCharts';
+import ReceiptLookup from './components/ReceiptLookup';
+import TransparencyPage from './components/TransparencyPage';
 import UpiQrModal from './components/UpiQrModal';
 import VolunteerProfileModal from './components/VolunteerProfileModal';
 import UserProfileModal from './components/UserProfileModal';
-import { 
-  loadAllGroups, 
-  saveAllGroups, 
-  getActiveGroupId, 
-  setActiveGroupId 
+import {
+  loadAllGroups,
+  saveAllGroups,
+  getActiveGroupId,
+  setActiveGroupId,
+  computeGroupFinancials
 } from './utils/storage';
-import { 
-  initFirebase, 
-  subscribeToGroupRealtime, 
+import {
+  initFirebase,
+  subscribeToGroupRealtime,
   syncGroupToFirestore,
   signInWithGoogle,
   logoutUser,
-  subscribeToAuth 
+  subscribeToAuth,
+  fetchGroupByCode
 } from './firebase';
+import {
+  isNotificationSupported,
+  getNotificationPermission,
+  requestNotificationPermission,
+  isNotificationBannerDismissed,
+  dismissNotificationBanner,
+  checkAndNotifyMilestones
+} from './utils/notifications';
 
 export default function App() {
   const [allGroups, setAllGroups] = useState(() => loadAllGroups());
@@ -54,27 +70,53 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
 
+  // Public Transparency Report Route (?public=CODE) - bypasses auth entirely
+  const [publicCode] = useState(() => new URLSearchParams(window.location.search).get('public'));
+
+  // Donor Receipt Lookup (auth-independent)
+  const [showReceiptLookup, setShowReceiptLookup] = useState(false);
+
+  // Milestone Notifications
+  const [showNotifyBanner, setShowNotifyBanner] = useState(false);
+  const [milestoneToast, setMilestoneToast] = useState(null);
+
   // Groups List & Active Group object
   const groupsList = Object.values(allGroups);
   const isAuthenticatedOrUnlocked = !!(currentUser || unlockedViaCode);
   const activeGroup = isAuthenticatedOrUnlocked ? (allGroups[activeGroupId] || (groupsList.length > 0 ? groupsList[0] : null)) : null;
 
   // URL Query Param Invite Link Detector (?inviteMember=CODE or ?join=CODE)
+  // Runs once on mount: checks the local cache first, then falls back to a
+  // direct Firestore lookup so a brand-new device following a WhatsApp
+  // invite link (with nothing cached locally yet) still lands in the group.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const inviteCode = params.get('inviteMember') || params.get('join') || params.get('code');
-    if (inviteCode && groupsList.length > 0) {
-      const matched = groupsList.find(g => g.code === inviteCode.trim());
-      if (matched) {
-        setGroupId(matched.id);
-        setActiveGroupId(matched.id);
-        setUnlockedViaCode(true);
-        if (params.get('inviteMember')) {
-          setShowVolunteerModal(true);
-        }
+    const inviteCode = (params.get('inviteMember') || params.get('join') || params.get('code') || '').trim();
+    if (!inviteCode) return;
+
+    const unlockGroup = (g) => {
+      setGroupId(g.id);
+      setActiveGroupId(g.id);
+      setUnlockedViaCode(true);
+      if (params.get('inviteMember')) {
+        setShowVolunteerModal(true);
       }
+    };
+
+    const matched = Object.values(loadAllGroups()).find(g => g.code === inviteCode);
+    if (matched) {
+      unlockGroup(matched);
+      return;
     }
-  }, [allGroups]);
+
+    let cancelled = false;
+    fetchGroupByCode(inviteCode).then(remote => {
+      if (cancelled || !remote) return;
+      setAllGroups(prev => ({ ...prev, [remote.id]: remote }));
+      unlockGroup(remote);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Check if logged in user has completed basic profile
   const checkMemberProfileCompletion = (user) => {
@@ -135,6 +177,37 @@ export default function App() {
     };
   }, [activeGroupId, firebaseConnected]);
 
+  // Show the "enable milestone alerts" banner once per group, if not already decided
+  useEffect(() => {
+    if (activeGroup?.id && isNotificationSupported() && getNotificationPermission() === 'default' && !isNotificationBannerDismissed()) {
+      setShowNotifyBanner(true);
+    }
+  }, [activeGroup?.id]);
+
+  // Check goal-progress milestones whenever the active group's totals change
+  useEffect(() => {
+    if (!activeGroup) return;
+    const financials = computeGroupFinancials(activeGroup);
+    const result = checkAndNotifyMilestones(activeGroup, financials);
+    if (result) {
+      setMilestoneToast(result);
+      try { confetti({ particleCount: 120, spread: 100, origin: { y: 0.4 } }); } catch (e) {}
+      const timer = setTimeout(() => setMilestoneToast(null), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeGroup]);
+
+  const handleEnableNotifications = async () => {
+    await requestNotificationPermission();
+    dismissNotificationBanner();
+    setShowNotifyBanner(false);
+  };
+
+  const handleDismissNotifyBanner = () => {
+    dismissNotificationBanner();
+    setShowNotifyBanner(false);
+  };
+
   // Google Login Handler
   const handleGoogleSignIn = async () => {
     try {
@@ -158,8 +231,18 @@ export default function App() {
     setActiveGroupId(null);
   };
 
-  const handleJoinViaCode = (code, passcode = '') => {
-    const matched = groupsList.find(g => g.code === code);
+  const handleJoinViaCode = async (code, passcode = '') => {
+    let matched = groupsList.find(g => g.code === code);
+
+    // Not cached locally yet (fresh device) - try Firestore directly
+    if (!matched) {
+      const remote = await fetchGroupByCode(code);
+      if (remote) {
+        matched = remote;
+        setAllGroups(prev => ({ ...prev, [remote.id]: remote }));
+      }
+    }
+
     if (matched) {
       if (matched.adminPasscode && passcode) {
         if (matched.adminPasscode !== passcode) {
@@ -295,6 +378,15 @@ export default function App() {
     setShowGroupModal(true);
   };
 
+  // Public transparency report - fully bypasses login/group state
+  if (publicCode) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg-main)' }}>
+        <TransparencyPage code={publicCode} groupsList={groupsList} />
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Top Navbar */}
@@ -331,14 +423,57 @@ export default function App() {
         </div>
       )}
 
+      {/* Milestone Notification Opt-In Banner */}
+      {showNotifyBanner && (
+        <div className="no-print" style={{
+          background: 'rgba(37, 99, 235, 0.15)',
+          borderBottom: '1px solid rgba(37, 99, 235, 0.3)',
+          color: 'var(--text-main)',
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '8px',
+          fontSize: '0.82rem'
+        }}>
+          <span>🔔 Get notified in this tab when your festival goal hits 25%, 50%, 75% & 100%!</span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={handleEnableNotifications} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }}>
+              Enable
+            </button>
+            <button onClick={handleDismissNotifyBanner} style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: 800, cursor: 'pointer' }}>✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* Milestone Reached Toast */}
+      {milestoneToast && (
+        <div className="no-print" style={{
+          position: 'fixed',
+          top: '76px',
+          right: '16px',
+          left: '16px',
+          maxWidth: '360px',
+          margin: '0 0 0 auto',
+          zIndex: 200
+        }}>
+          <div className="glass-card" style={{ padding: '16px', border: '1.5px solid #eab308', boxShadow: '0 0 25px rgba(234, 179, 8, 0.3)' }}>
+            <h4 style={{ fontSize: '0.95rem', color: '#fbbf24', marginBottom: '4px' }}>{milestoneToast.title}</h4>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{milestoneToast.body}</p>
+          </div>
+        </div>
+      )}
+
       {/* Main Container */}
       <main className="app-container">
         {!isAuthenticatedOrUnlocked ? (
-          <GuestLoginGate 
+          <GuestLoginGate
             currentUser={currentUser}
             onGoogleSignIn={handleGoogleSignIn}
             onJoinViaCode={handleJoinViaCode}
             groupsList={groupsList}
+            onOpenReceiptLookup={() => setShowReceiptLookup(true)}
           />
         ) : !activeGroup ? (
           /* NO ACTIVE GROUP LANDING SCREEN */
@@ -469,11 +604,30 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'pledges' && (
+              <PledgesList
+                group={activeGroup}
+                onUpdateGroup={handleUpdateActiveGroup}
+                onAddCollection={handleAddCollection}
+              />
+            )}
+
             {activeTab === 'prasadam' && (
-              <PrasadamSchedule 
+              <PrasadamSchedule
                 group={activeGroup}
                 onUpdateGroup={handleUpdateActiveGroup}
               />
+            )}
+
+            {activeTab === 'auction' && (
+              <LadduAuction
+                group={activeGroup}
+                onUpdateGroup={handleUpdateActiveGroup}
+              />
+            )}
+
+            {activeTab === 'analytics' && (
+              <AnalyticsCharts group={activeGroup} />
             )}
 
             {activeTab === 'ledger' && (
@@ -524,11 +678,12 @@ export default function App() {
       )}
 
       {showGroupModal && (
-        <GroupSelectorModal 
+        <GroupSelectorModal
           groupsMap={allGroups}
           activeGroupId={activeGroupId}
           onSelectGroup={handleSelectGroup}
           onCreateGroup={handleCreateGroup}
+          onImportGroup={handleCreateGroup}
           onClose={() => setShowGroupModal(false)}
           initialMode={groupModalInitialMode}
         />
@@ -552,10 +707,17 @@ export default function App() {
       )}
 
       {showUpiQr && activeGroup && (
-        <UpiQrModal 
+        <UpiQrModal
           group={activeGroup}
           onUpdateGroup={handleUpdateActiveGroup}
           onClose={() => setShowUpiQr(false)}
+        />
+      )}
+
+      {showReceiptLookup && (
+        <ReceiptLookup
+          groupsList={groupsList}
+          onClose={() => setShowReceiptLookup(false)}
         />
       )}
     </div>

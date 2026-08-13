@@ -1,11 +1,15 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  onSnapshot, 
-  collection 
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  onSnapshot,
+  collection,
+  query,
+  where,
+  getDocs,
+  limit
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -98,6 +102,25 @@ export const subscribeToGroupRealtime = (groupId, onDataUpdate) => {
     });
     return unsubscribe;
   } catch (e) {
+    return null;
+  }
+};
+
+// Fetch a group by its 6-digit join code directly from Firestore.
+// Needed for anyone who doesn't already have the group cached locally
+// (fresh device following a WhatsApp invite link, donor receipt lookup,
+// or the public transparency page).
+export const fetchGroupByCode = async (code) => {
+  if (!db) initFirebase();
+  if (!db || !code) return null;
+  try {
+    const groupsRef = collection(db, 'groups');
+    const q = query(groupsRef, where('code', '==', code), limit(1));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    return snap.docs[0].data();
+  } catch (err) {
+    console.warn("Failed to fetch group by code:", err);
     return null;
   }
 };

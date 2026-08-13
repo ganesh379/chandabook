@@ -1,0 +1,64 @@
+rules_version = '2';
+
+// ChandaBook Firestore Rules
+//
+// IMPORTANT - read this before deploying:
+// ChandaBook's access model is "possession of the 6-digit group code (+ an
+// optional plaintext admin passcode stored ON the document itself)", checked
+// entirely client-side. There is no Firebase Auth requirement for guest
+// volunteers who join via code - they read/write Firestore directly from
+// the browser. That means Firestore rules alone CANNOT fully secure this
+// data model: `read: true` is required for join-by-code, the donor receipt
+// lookup, and the public transparency page to work at all, and any rule
+// that requires request.auth != null on writes will break guest (non-Google)
+// volunteers, who are the primary users per the app's own UI.
+//
+// These rules are therefore a *minimum viable* baseline: open read (already
+// implied by the app's own "share this code" model), writes restricted to
+// well-formed group documents only (blocks accidental corruption / random
+// junk writes, not a determined attacker), and deletes disabled outright
+// (the app never deletes the Firestore doc - "Delete Group" only clears it
+// locally).
+//
+// For real write protection, the recommended upgrade is to call
+// firebase/auth's signInAnonymously() when a user unlocks a group via code,
+// then require request.auth != null here. That's a larger change to the
+// join flow and hasn't been made - flagging it rather than silently
+// shipping a false sense of security.
+//
+// Deploy with: firebase deploy --only firestore:rules
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /groups/{groupId} {
+      // Needed for: join-by-code, donor receipt lookup, public transparency page
+      allow read: if true;
+
+      allow create: if isValidGroup(request.resource.data)
+                    && request.resource.data.id == groupId;
+
+      allow update: if isValidGroup(request.resource.data)
+                    && resource.data.id == groupId
+                    // Admin passcode & join code can't be silently swapped out
+                    // by a write that doesn't already know the current code.
+                    && request.resource.data.code == resource.data.code;
+
+      allow delete: if false;
+
+      function isValidGroup(data) {
+        return data.keys().hasAll(['id', 'code', 'name'])
+          && data.id is string
+          && data.code is string
+          && data.code.size() == 6
+          && data.name is string
+          && data.name.size() > 0 && data.name.size() < 200;
+      }
+    }
+
+    // Deny everything else by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
