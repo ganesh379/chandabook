@@ -404,7 +404,7 @@ export default function App() {
                   className="btn btn-secondary"
                   style={{ padding: '12px', fontSize: '0.9rem', width: '100%', gap: '6px' }}
                 >
-                  👤 My Profile & Contact Details
+                  👤 My Profile
                 </button>
 
                 <button 
@@ -412,7 +412,7 @@ export default function App() {
                   className="btn btn-danger"
                   style={{ padding: '12px', fontSize: '0.9rem', width: '100%', gap: '6px', marginTop: '6px' }}
                 >
-                  🚪 Logout / Sign Out
+                  🚪 Logout
                 </button>
               </div>
             </div>

@@ -46,7 +46,7 @@ export default function UserProfileModal({ currentUser, onLogout, onClose, isFir
               <ShieldCheck size={12} /> {isFirstTime ? 'First Time Member Registration' : 'My User Profile'}
             </span>
             <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', fontWeight: 800 }}>
-              {isFirstTime ? 'Welcome! Submit Basic Details' : 'User Profile & Settings'}
+              {isFirstTime ? 'Welcome! Submit Basic Details' : 'My Profile'}
             </h3>
           </div>
           {!isFirstTime && (
@@ -137,7 +137,7 @@ export default function UserProfileModal({ currentUser, onLogout, onClose, isFir
                 className="btn btn-danger"
                 style={{ padding: '10px', width: '100%', gap: '6px' }}
               >
-                <LogOut size={16} /> Logout / Sign Out
+                <LogOut size={16} /> Logout
               </button>
             )}
           </div>
