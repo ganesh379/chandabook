@@ -447,18 +447,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Milestone Reached Toast */}
+      {/* Milestone Reached Toast - normal document flow, matches the PWA/notify banners below the header so it never overlaps navbar content on narrow screens */}
       {milestoneToast && (
-        <div className="no-print" style={{
-          position: 'fixed',
-          top: '76px',
-          right: '16px',
-          left: '16px',
-          maxWidth: '360px',
-          margin: '0 0 0 auto',
-          zIndex: 200
-        }}>
-          <div className="glass-card" style={{ padding: '16px', border: '1.5px solid #eab308', boxShadow: '0 0 25px rgba(234, 179, 8, 0.3)' }}>
+        <div className="no-print" style={{ padding: '10px 16px' }}>
+          <div className="glass-card" style={{ padding: '14px 16px', border: '1.5px solid #eab308', boxShadow: '0 0 25px rgba(234, 179, 8, 0.3)', maxWidth: '480px', margin: '0 auto' }}>
             <h4 style={{ fontSize: '0.95rem', color: '#fbbf24', marginBottom: '4px' }}>{milestoneToast.title}</h4>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{milestoneToast.body}</p>
           </div>
