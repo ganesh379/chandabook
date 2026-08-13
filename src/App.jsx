@@ -14,6 +14,7 @@ import ReportsSettings from './components/ReportsSettings';
 import GroupSelectorModal from './components/GroupSelectorModal';
 import PrasadamSchedule from './components/PrasadamSchedule';
 import UpiQrModal from './components/UpiQrModal';
+import VolunteerProfileModal from './components/VolunteerProfileModal';
 import { 
   loadAllGroups, 
   saveAllGroups, 
@@ -36,6 +37,7 @@ export default function App() {
   const [firebaseConnected, setFirebaseConnected] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [unlockedViaCode, setUnlockedViaCode] = useState(false);
+  const [showVolunteerModal, setShowVolunteerModal] = useState(false);
 
   // Modals state
   const [showAddChanda, setShowAddChanda] = useState(false);
@@ -54,16 +56,19 @@ export default function App() {
   const isAuthenticatedOrUnlocked = !!(currentUser || unlockedViaCode);
   const activeGroup = isAuthenticatedOrUnlocked ? (allGroups[activeGroupId] || (groupsList.length > 0 ? groupsList[0] : null)) : null;
 
-  // URL Query Param Invite Link Detector (?join=884920)
+  // URL Query Param Invite Link Detector (?inviteMember=CODE or ?join=CODE)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const joinCode = params.get('join') || params.get('code');
-    if (joinCode && groupsList.length > 0) {
-      const matched = groupsList.find(g => g.code === joinCode.trim());
+    const inviteCode = params.get('inviteMember') || params.get('join') || params.get('code');
+    if (inviteCode && groupsList.length > 0) {
+      const matched = groupsList.find(g => g.code === inviteCode.trim());
       if (matched) {
         setGroupId(matched.id);
         setActiveGroupId(matched.id);
         setUnlockedViaCode(true);
+        if (params.get('inviteMember')) {
+          setShowVolunteerModal(true);
+        }
       }
     }
   }, [allGroups]);
@@ -127,7 +132,7 @@ export default function App() {
     }
   };
 
-  // Complete Logout Handler (Clears all active session & group memory)
+  // Complete Logout Handler
   const handleLogout = async () => {
     await logoutUser();
     setCurrentUser(null);
@@ -173,6 +178,25 @@ export default function App() {
       ...prev,
       [updatedGroup.id]: updatedGroup
     }));
+  };
+
+  // Submit Volunteer Profile from WhatsApp link
+  const handleSubmitVolunteerProfile = (memberObj) => {
+    if (!activeGroup) return;
+    const existingMembers = activeGroup.members || [];
+    const existingMembersData = activeGroup.membersData || [];
+
+    const updatedMembers = [...existingMembers, memberObj.name];
+    const updatedMembersData = [...existingMembersData, memberObj];
+
+    handleUpdateActiveGroup({
+      ...activeGroup,
+      members: updatedMembers,
+      membersData: updatedMembersData
+    });
+
+    setShowVolunteerModal(false);
+    setActiveTab('leaderboard');
   };
 
   // Delete Entire Group (Admin Action)
@@ -410,6 +434,15 @@ export default function App() {
       )}
 
       {/* MODALS */}
+      {showVolunteerModal && activeGroup && (
+        <VolunteerProfileModal 
+          group={activeGroup}
+          currentUser={currentUser}
+          onSubmitProfile={handleSubmitVolunteerProfile}
+          onClose={() => setShowVolunteerModal(false)}
+        />
+      )}
+
       {showGroupModal && (
         <GroupSelectorModal 
           groupsMap={allGroups}

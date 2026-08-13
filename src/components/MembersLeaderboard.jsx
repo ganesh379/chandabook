@@ -2,43 +2,110 @@ import React, { useState } from 'react';
 import { 
   Trophy, 
   Users, 
-  Plus, 
+  UserPlus, 
   Trash2, 
-  UserCheck, 
   Share2,
-  Lock,
-  ShieldAlert
+  Edit2,
+  ShieldCheck,
+  Check,
+  Phone,
+  Crown,
+  Briefcase,
+  X
 } from 'lucide-react';
 import { computeGroupFinancials } from '../utils/storage';
 
+export const COMMITTEE_ROLES = [
+  { id: 'President', label: '👑 President', badgeClass: 'badge-saffron' },
+  { id: 'Treasurer', label: '💼 Treasurer / Cashier', badgeClass: 'badge-green' },
+  { id: 'Secretary', label: '📜 General Secretary', badgeClass: 'badge-saffron' },
+  { id: 'Vice President', label: '🌟 Vice President', badgeClass: 'badge-saffron' },
+  { id: 'Youth Leader', label: '🚩 Youth Leader', badgeClass: 'badge-saffron' },
+  { id: 'Pooja In-Charge', label: '🪔 Pooja Committee In-Charge', badgeClass: 'badge-saffron' },
+  { id: 'Pandal In-Charge', label: '🎪 Pandal & Decor In-Charge', badgeClass: 'badge-saffron' },
+  { id: 'Food In-Charge', label: '🍲 Prasadam / Food In-Charge', badgeClass: 'badge-saffron' },
+  { id: 'Volunteer', label: '📢 Committee Volunteer', badgeClass: 'badge-secondary' }
+];
+
 export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt }) {
   const [selectedMember, setSelectedMember] = useState(null);
-  const [newMemberName, setNewMemberName] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [memberToEditRole, setMemberToEditRole] = useState(null);
+  const [selectedRoleInput, setSelectedRoleInput] = useState('Volunteer');
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const financials = computeGroupFinancials(group);
   const memberStats = financials.memberStats;
 
-  const handleAddMember = (e) => {
-    e.preventDefault();
-    if (!newMemberName.trim()) return;
+  // Generate 1-Click WhatsApp Member Invite Link
+  const getMemberInviteUrl = () => {
+    if (!group?.code) return window.location.origin;
+    return `${window.location.origin}/?inviteMember=${group.code}`;
+  };
 
-    const updatedMembers = [...(group.members || []), newMemberName.trim()];
+  const handleShareMemberInvite = () => {
+    const inviteUrl = getMemberInviteUrl();
+    const text = encodeURIComponent(
+      `🪔 *JOIN COMMITTEE VOLUNTEER TEAM* 🪔\n` +
+      `You are invited to join the official volunteer team for *${group?.name}* on ChandaBook!\n\n` +
+      `👉 Tap link to sign in & complete your volunteer profile:\n${inviteUrl}`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
+
+  const handleCopyInviteLink = () => {
+    navigator.clipboard.writeText(getMemberInviteUrl());
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  const handleOpenEditRole = (memberName) => {
+    setMemberToEditRole(memberName);
+    const existingMemberObj = (group.membersData || []).find(m => (typeof m === 'object' ? m.name : m) === memberName);
+    setSelectedRoleInput(existingMemberObj?.role || 'Volunteer');
+    setShowRoleModal(true);
+  };
+
+  const handleSaveRole = (e) => {
+    e.preventDefault();
+    if (!memberToEditRole) return;
+
+    const updatedMembersData = (group.membersData || []).map(m => {
+      const name = typeof m === 'object' ? m.name : m;
+      if (name === memberToEditRole) {
+        return typeof m === 'object' 
+          ? { ...m, role: selectedRoleInput }
+          : { name: m, role: selectedRoleInput };
+      }
+      return m;
+    });
+
+    // Check if member wasn't in membersData list yet
+    const exists = updatedMembersData.some(m => (typeof m === 'object' ? m.name : m) === memberToEditRole);
+    if (!exists) {
+      updatedMembersData.push({ name: memberToEditRole, role: selectedRoleInput });
+    }
+
     onUpdateGroup({
       ...group,
-      members: updatedMembers
+      membersData: updatedMembersData
     });
-    setNewMemberName('');
-    setShowAddModal(false);
+
+    setShowRoleModal(false);
+    setMemberToEditRole(null);
   };
 
   const handleRemoveMember = (memberName) => {
     if (!window.confirm(`Are you sure you want to remove "${memberName}" from the committee members list?`)) return;
 
-    const updatedMembers = (group.members || []).filter(m => m !== memberName);
+    const updatedMembers = (group.members || []).filter(m => (typeof m === 'object' ? m.name : m) !== memberName);
+    const updatedMembersData = (group.membersData || []).filter(m => (typeof m === 'object' ? m.name : m) !== memberName);
+
     onUpdateGroup({
       ...group,
-      members: updatedMembers
+      members: updatedMembers,
+      membersData: updatedMembersData
     });
   };
 
@@ -55,15 +122,15 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Trophy size={20} style={{ color: '#eab308' }} />
-              <h2 style={{ fontSize: '1.4rem', color: 'var(--text-main)' }}>Committee Member Leaderboard</h2>
+              <h2 style={{ fontSize: '1.4rem', color: 'var(--text-main)' }}>Committee Leaderboard & Member Roster</h2>
             </div>
             <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-              Track volunteer collections & manage committee member roster
+              Track volunteer collections, assign official positions & invite members via WhatsApp
             </p>
           </div>
 
-          <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-            <Plus size={16} /> Add Member / Volunteer
+          <button onClick={() => setShowInviteModal(true)} className="btn btn-primary" style={{ gap: '8px' }}>
+            <UserPlus size={16} /> Invite Member via WhatsApp
           </button>
         </div>
       </div>
@@ -77,6 +144,11 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
         {memberStats.map((member, index) => {
           const isTop3 = index < 3;
           const badgeColor = index === 0 ? '#eab308' : index === 1 ? '#94a3b8' : index === 2 ? '#b45309' : 'transparent';
+          
+          // Get member role
+          const memberObj = (group.membersData || []).find(m => (typeof m === 'object' ? m.name : m) === member.name);
+          const memberRole = (typeof memberObj === 'object' ? memberObj.role : '') || (member.name.includes('President') ? 'President' : member.name.includes('Treasurer') ? 'Treasurer' : 'Volunteer');
+          const roleObj = COMMITTEE_ROLES.find(r => r.id === memberRole) || COMMITTEE_ROLES[8];
 
           return (
             <div 
@@ -89,8 +161,8 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
                 background: isTop3 ? `rgba(${index === 0 ? '234, 179, 8' : index === 1 ? '148, 163, 184' : '180, 83, 9'}, 0.06)` : 'var(--bg-card)'
               }}
             >
-              {/* Rank Badge & Remove Button */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              {/* Rank Badge & Controls */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{
                     width: '32px',
@@ -108,22 +180,33 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
                     #{index + 1}
                   </span>
                   <span className="badge-pill badge-saffron" style={{ fontSize: '0.68rem' }}>
-                    {index === 0 ? '🏆 Top Collector' : index === 1 ? '🥈 2nd Rank' : index === 2 ? '🥉 3rd Rank' : 'Committee Member'}
+                    {roleObj.label}
                   </span>
                 </div>
 
-                <button 
-                  onClick={() => handleRemoveMember(member.name)}
-                  style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '4px' }}
-                  title="Remove Volunteer from Committee"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button 
+                    onClick={() => handleOpenEditRole(member.name)}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary-500)', cursor: 'pointer', padding: '4px' }}
+                    title="Assign Official Position / Role"
+                  >
+                    <Edit2 size={15} />
+                  </button>
+
+                  <button 
+                    onClick={() => handleRemoveMember(member.name)}
+                    style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '4px' }}
+                    title="Remove Volunteer"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
 
-              <h3 style={{ fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '4px' }}>
+              <h3 style={{ fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 800 }}>
                 {member.name}
               </h3>
+              
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
                 {member.count} donation receipts issued
               </p>
@@ -155,31 +238,64 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
         })}
       </div>
 
-      {/* ADD MEMBER MODAL */}
-      {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-container" onClick={e => e.stopPropagation()}>
-            <h3 style={{ fontSize: '1.2rem', marginBottom: '16px' }}>Add Committee Member / Volunteer</h3>
-            <form onSubmit={handleAddMember}>
+      {/* WHATSAPP MEMBER INVITE LINK MODAL */}
+      {showInviteModal && (
+        <div className="modal-overlay" onClick={() => setShowInviteModal(false)}>
+          <div className="modal-container" style={{ maxWidth: '440px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>Invite Volunteer via WhatsApp</h3>
+              <button onClick={() => setShowInviteModal(false)} className="btn btn-secondary btn-icon"><X size={16} /></button>
+            </div>
+
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Share this invite link with your committee member on WhatsApp. When they tap the link, they will sign in with Google and submit their profile details to join the group!
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button onClick={handleShareMemberInvite} className="btn btn-whatsapp" style={{ padding: '12px', fontSize: '0.95rem' }}>
+                <Share2 size={18} /> Share Invite Link on WhatsApp
+              </button>
+
+              <button onClick={handleCopyInviteLink} className="btn btn-secondary" style={{ padding: '10px', fontSize: '0.85rem' }}>
+                {copiedLink ? <Check size={16} style={{ color: '#34d399' }} /> : <Users size={16} />}
+                {copiedLink ? 'Invite Link Copied!' : 'Copy Invite Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT ROLE / POSITION ASSIGNMENT MODAL */}
+      {showRoleModal && (
+        <div className="modal-overlay" onClick={() => setShowRoleModal(false)}>
+          <div className="modal-container" style={{ maxWidth: '380px' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize: '1.15rem', color: 'var(--text-main)', marginBottom: '6px' }}>
+              Assign Position / Role
+            </h3>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Assign an official committee title to <strong>{memberToEditRole}</strong>:
+            </p>
+
+            <form onSubmit={handleSaveRole}>
               <div className="form-group">
-                <label className="form-label">Volunteer Full Name</label>
-                <input 
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Ramesh Babu (Secretary)"
-                  value={newMemberName}
-                  onChange={e => setNewMemberName(e.target.value)}
-                  autoFocus
-                  required
-                />
+                <label className="form-label">Official Designation</label>
+                <select 
+                  className="form-select"
+                  value={selectedRoleInput}
+                  onChange={e => setSelectedRoleInput(e.target.value)}
+                >
+                  {COMMITTEE_ROLES.map(r => (
+                    <option key={r.id} value={r.id}>{r.label}</option>
+                  ))}
+                </select>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary" style={{ flex: 1 }}>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                <button type="button" onClick={() => setShowRoleModal(false)} className="btn btn-secondary" style={{ flex: 1 }}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                  Save Member
+                  Save Position
                 </button>
               </div>
             </form>
