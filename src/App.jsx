@@ -41,6 +41,7 @@ export default function App() {
   const [showVolunteerModal, setShowVolunteerModal] = useState(false);
   const [autoOpenExpenseModal, setAutoOpenExpenseModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isFirstTimeProfile, setIsFirstTimeProfile] = useState(false);
 
   // Modals state
   const [showAddChanda, setShowAddChanda] = useState(false);
@@ -75,6 +76,16 @@ export default function App() {
     }
   }, [allGroups]);
 
+  // Check if logged in user has completed basic profile
+  const checkMemberProfileCompletion = (user) => {
+    if (!user) return;
+    const profile = JSON.parse(localStorage.getItem('chandabook_user_profile') || '{}');
+    if (!profile.isProfileComplete || !profile.phone) {
+      setIsFirstTimeProfile(true);
+      setShowProfileModal(true);
+    }
+  };
+
   // Initialize Firebase and Listen to Auth state
   useEffect(() => {
     const db = initFirebase();
@@ -82,6 +93,9 @@ export default function App() {
 
     const unsubscribeAuth = subscribeToAuth((user) => {
       setCurrentUser(user);
+      if (user) {
+        checkMemberProfileCompletion(user);
+      }
     });
 
     const handleBeforeInstall = (e) => {
@@ -127,6 +141,7 @@ export default function App() {
       const result = await signInWithGoogle();
       if (result?.user) {
         setCurrentUser(result.user);
+        checkMemberProfileCompletion(result.user);
         setActiveTab('dashboard');
       }
     } catch (err) {
@@ -326,7 +341,7 @@ export default function App() {
             groupsList={groupsList}
           />
         ) : !activeGroup ? (
-          /* NO ACTIVE GROUP LANDING SCREEN - NOW WITH PROFILE & LOGOUT BUTTONS */
+          /* NO ACTIVE GROUP LANDING SCREEN */
           <div style={{ maxWidth: '580px', margin: '30px auto', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div className="glass-card" style={{ padding: '32px 24px' }}>
               {currentUser && (
@@ -382,7 +397,10 @@ export default function App() {
                 </button>
 
                 <button 
-                  onClick={() => setShowProfileModal(true)}
+                  onClick={() => {
+                    setIsFirstTimeProfile(false);
+                    setShowProfileModal(true);
+                  }}
                   className="btn btn-secondary"
                   style={{ padding: '12px', fontSize: '0.9rem', width: '100%', gap: '6px' }}
                 >
@@ -492,6 +510,7 @@ export default function App() {
           currentUser={currentUser}
           onLogout={handleLogout}
           onClose={() => setShowProfileModal(false)}
+          isFirstTime={isFirstTimeProfile}
         />
       )}
 

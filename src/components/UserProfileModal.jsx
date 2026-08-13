@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { User, Phone, MapPin, Save, X, LogOut } from 'lucide-react';
+import { User, Phone, MapPin, Save, X, LogOut, CheckCircle, ShieldCheck } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
-export default function UserProfileModal({ currentUser, onLogout, onClose }) {
+export default function UserProfileModal({ currentUser, onLogout, onClose, isFirstTime = false }) {
   const savedProfile = JSON.parse(localStorage.getItem('chandabook_user_profile') || '{}');
 
   const [fullName, setFullName] = useState(savedProfile.fullName || currentUser?.displayName || '');
@@ -11,27 +12,46 @@ export default function UserProfileModal({ currentUser, onLogout, onClose }) {
 
   const handleSave = (e) => {
     e.preventDefault();
+    if (!fullName.trim() || !phone.trim()) {
+      alert("Please enter your Full Name and Mobile Number.");
+      return;
+    }
+
+    try {
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+    } catch (err) {}
+
     const updated = {
       fullName: fullName.trim(),
       phone: phone.trim(),
       city: city.trim(),
-      email: currentUser?.email || ''
+      email: currentUser?.email || '',
+      isProfileComplete: true
     };
 
     localStorage.setItem('chandabook_user_profile', JSON.stringify(updated));
-    setSavedMsg("Profile details saved successfully!");
+    setSavedMsg("Profile saved successfully!");
     setTimeout(() => {
       setSavedMsg('');
       onClose();
-    }, 1500);
+    }, 1200);
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={isFirstTime ? undefined : onClose}>
       <div className="modal-container" style={{ maxWidth: '440px' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', fontWeight: 800 }}>My User Profile & Settings</h3>
-          <button onClick={onClose} className="btn btn-secondary btn-icon"><X size={16} /></button>
+          <div>
+            <span className="badge-pill badge-saffron" style={{ fontSize: '0.68rem', marginBottom: '4px' }}>
+              <ShieldCheck size={12} /> {isFirstTime ? 'First Time Member Registration' : 'My User Profile'}
+            </span>
+            <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', fontWeight: 800 }}>
+              {isFirstTime ? 'Welcome! Submit Basic Details' : 'User Profile & Settings'}
+            </h3>
+          </div>
+          {!isFirstTime && (
+            <button onClick={onClose} className="btn btn-secondary btn-icon"><X size={16} /></button>
+          )}
         </div>
 
         {/* Google User Identity Info */}
@@ -61,24 +81,27 @@ export default function UserProfileModal({ currentUser, onLogout, onClose }) {
 
         <form onSubmit={handleSave}>
           <div className="form-group">
-            <label className="form-label">Full Name</label>
+            <label className="form-label">Full Name *</label>
             <input 
               type="text"
               className="form-input"
+              placeholder="e.g. Ramesh Kumar"
               value={fullName}
               onChange={e => setFullName(e.target.value)}
               required
+              autoFocus
             />
           </div>
 
           <div className="form-group">
-            <label className="form-label">Mobile / WhatsApp Number</label>
+            <label className="form-label">Mobile / WhatsApp Number *</label>
             <input 
               type="tel"
               className="form-input"
               placeholder="e.g. 9848022334"
               value={phone}
               onChange={e => setPhone(e.target.value)}
+              required
             />
           </div>
 
@@ -100,21 +123,23 @@ export default function UserProfileModal({ currentUser, onLogout, onClose }) {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px' }}>
-            <button type="submit" className="btn btn-primary" style={{ padding: '12px', width: '100%', gap: '8px' }}>
-              <Save size={16} /> Save Profile Details
+            <button type="submit" className="btn btn-primary" style={{ padding: '14px', width: '100%', gap: '8px', fontSize: '0.95rem' }}>
+              <CheckCircle size={18} /> {isFirstTime ? 'Save & Continue to Festival Ledger' : 'Save Profile Details'}
             </button>
 
-            <button 
-              type="button" 
-              onClick={() => {
-                onLogout();
-                onClose();
-              }} 
-              className="btn btn-danger"
-              style={{ padding: '10px', width: '100%', gap: '6px' }}
-            >
-              <LogOut size={16} /> Logout / Sign Out
-            </button>
+            {onLogout && (
+              <button 
+                type="button" 
+                onClick={() => {
+                  onLogout();
+                  onClose();
+                }} 
+                className="btn btn-danger"
+                style={{ padding: '10px', width: '100%', gap: '6px' }}
+              >
+                <LogOut size={16} /> Logout / Sign Out
+              </button>
+            )}
           </div>
         </form>
       </div>
