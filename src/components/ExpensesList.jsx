@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Receipt, 
   Plus, 
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { EXPENSE_CATEGORIES } from '../utils/storage';
 
-export default function ExpensesList({ group, onAddExpense, onDeleteExpense }) {
+export default function ExpensesList({ group, onAddExpense, onDeleteExpense, autoOpenAddModal, onResetAutoOpen }) {
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -22,6 +22,13 @@ export default function ExpensesList({ group, onAddExpense, onDeleteExpense }) {
   const [spentBy, setSpentBy] = useState(group?.members?.[0] || 'Suresh (President)');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (autoOpenAddModal) {
+      setShowAddModal(true);
+      if (onResetAutoOpen) onResetAutoOpen();
+    }
+  }, [autoOpenAddModal]);
 
   const expenses = group?.expenses || [];
 
@@ -274,7 +281,9 @@ export default function ExpensesList({ group, onAddExpense, onDeleteExpense }) {
                     onChange={e => setSpentBy(e.target.value)}
                   >
                     {(group?.members || ['Suresh (President)']).map(m => (
-                      <option key={m} value={m}>{m}</option>
+                      <option key={typeof m === 'object' ? m.name : m} value={typeof m === 'object' ? m.name : m}>
+                        {typeof m === 'object' ? m.name : m}
+                      </option>
                     ))}
                   </select>
                 </div>

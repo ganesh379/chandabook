@@ -38,10 +38,10 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [unlockedViaCode, setUnlockedViaCode] = useState(false);
   const [showVolunteerModal, setShowVolunteerModal] = useState(false);
+  const [autoOpenExpenseModal, setAutoOpenExpenseModal] = useState(false);
 
   // Modals state
   const [showAddChanda, setShowAddChanda] = useState(false);
-  const [showAddExpense, setShowAddExpense] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupModalInitialMode, setGroupModalInitialMode] = useState('list');
   const [selectedReceipt, setSelectedReceipt] = useState(null);
@@ -178,6 +178,12 @@ export default function App() {
       ...prev,
       [updatedGroup.id]: updatedGroup
     }));
+  };
+
+  // Trigger Log Expense Redirection & Auto-Open Modal
+  const handleOpenAddExpense = () => {
+    setActiveTab('expenses');
+    setAutoOpenExpenseModal(true);
   };
 
   // Submit Volunteer Profile from WhatsApp link
@@ -367,7 +373,7 @@ export default function App() {
               <Dashboard 
                 group={activeGroup}
                 onOpenAddChanda={() => setShowAddChanda(true)}
-                onOpenAddExpense={() => setShowAddExpense(true)}
+                onOpenAddExpense={handleOpenAddExpense}
                 onSelectTab={setActiveTab}
                 onViewReceipt={setSelectedReceipt}
               />
@@ -395,6 +401,8 @@ export default function App() {
                 group={activeGroup}
                 onAddExpense={handleAddExpense}
                 onDeleteExpense={handleDeleteExpense}
+                autoOpenAddModal={autoOpenExpenseModal}
+                onResetAutoOpen={() => setAutoOpenExpenseModal(false)}
               />
             )}
 
