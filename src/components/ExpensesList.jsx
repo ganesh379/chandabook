@@ -4,9 +4,7 @@ import {
   Plus, 
   Trash2, 
   Search, 
-  Tag, 
-  Store, 
-  Calendar,
+  Printer, 
   X 
 } from 'lucide-react';
 import { EXPENSE_CATEGORIES } from '../utils/storage';
@@ -65,6 +63,10 @@ export default function ExpensesList({ group, onAddExpense, onDeleteExpense }) {
     setShowAddModal(false);
   };
 
+  const handlePrintPDF = () => {
+    window.print();
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Header Bar */}
@@ -77,13 +79,18 @@ export default function ExpensesList({ group, onAddExpense, onDeleteExpense }) {
             </p>
           </div>
 
-          <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-            <Plus size={16} /> Log New Expense
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={handlePrintPDF} className="btn btn-secondary no-print">
+              <Printer size={16} /> Print / Save PDF
+            </button>
+            <button onClick={() => setShowAddModal(true)} className="btn btn-primary no-print">
+              <Plus size={16} /> Log New Expense
+            </button>
+          </div>
         </div>
 
         {/* Category Pill Filters */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
+        <div className="no-print" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
           <button
             onClick={() => setActiveCategory('ALL')}
             className={`chip-btn ${activeCategory === 'ALL' ? 'active' : ''}`}
@@ -102,7 +109,7 @@ export default function ExpensesList({ group, onAddExpense, onDeleteExpense }) {
         </div>
 
         {/* Search */}
-        <div style={{ position: 'relative' }}>
+        <div className="no-print" style={{ position: 'relative' }}>
           <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input 
             type="text"
@@ -183,7 +190,7 @@ export default function ExpensesList({ group, onAddExpense, onDeleteExpense }) {
 
                   <button 
                     onClick={() => onDeleteExpense(exp.id)}
-                    className="btn btn-danger btn-icon"
+                    className="btn btn-danger btn-icon no-print"
                     title="Delete Expense Record"
                   >
                     <Trash2 size={15} />
