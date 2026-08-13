@@ -1,0 +1,22 @@
+{
+  "name": "ChandaBook - Festival Chanda & Expense Ledger",
+  "short_name": "ChandaBook",
+  "description": "Universal multi-group festival collection, member tracking, expense manager, and WhatsApp receipt generator for Vinayaka Chavithi, Durga Puja, Diwali & community events.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#f59e0b",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
