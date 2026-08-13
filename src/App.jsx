@@ -15,6 +15,7 @@ import GroupSelectorModal from './components/GroupSelectorModal';
 import PrasadamSchedule from './components/PrasadamSchedule';
 import UpiQrModal from './components/UpiQrModal';
 import VolunteerProfileModal from './components/VolunteerProfileModal';
+import UserProfileModal from './components/UserProfileModal';
 import { 
   loadAllGroups, 
   saveAllGroups, 
@@ -39,6 +40,7 @@ export default function App() {
   const [unlockedViaCode, setUnlockedViaCode] = useState(false);
   const [showVolunteerModal, setShowVolunteerModal] = useState(false);
   const [autoOpenExpenseModal, setAutoOpenExpenseModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Modals state
   const [showAddChanda, setShowAddChanda] = useState(false);
@@ -324,10 +326,37 @@ export default function App() {
             groupsList={groupsList}
           />
         ) : !activeGroup ? (
-          /* NO ACTIVE GROUP ONBOARDING LANDING SCREEN FOR NEW USERS */
+          /* NO ACTIVE GROUP LANDING SCREEN - NOW WITH PROFILE & LOGOUT BUTTONS */
           <div style={{ maxWidth: '580px', margin: '30px auto', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div className="glass-card" style={{ padding: '32px 24px' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🚩</div>
+              {currentUser && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  marginBottom: '20px',
+                  padding: '12px',
+                  background: 'var(--bg-input)',
+                  borderRadius: '14px'
+                }}>
+                  <img 
+                    src={currentUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.email}`} 
+                    alt={currentUser.displayName} 
+                    style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid var(--primary-500)' }}
+                  />
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '0.9rem' }}>
+                      {currentUser.displayName}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#34d399' }}>
+                      {currentUser.email}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>🚩</div>
               <h2 style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: 800 }}>
                 Welcome to ChandaBook!
               </h2>
@@ -350,6 +379,22 @@ export default function App() {
                   style={{ padding: '14px', fontSize: '0.95rem', width: '100%' }}
                 >
                   🔑 Join Group via 6-Digit Code
+                </button>
+
+                <button 
+                  onClick={() => setShowProfileModal(true)}
+                  className="btn btn-secondary"
+                  style={{ padding: '12px', fontSize: '0.9rem', width: '100%', gap: '6px' }}
+                >
+                  👤 My Profile & Contact Details
+                </button>
+
+                <button 
+                  onClick={handleLogout}
+                  className="btn btn-danger"
+                  style={{ padding: '12px', fontSize: '0.9rem', width: '100%', gap: '6px', marginTop: '6px' }}
+                >
+                  🚪 Logout / Sign Out
                 </button>
               </div>
             </div>
@@ -442,6 +487,14 @@ export default function App() {
       )}
 
       {/* MODALS */}
+      {showProfileModal && (
+        <UserProfileModal 
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onClose={() => setShowProfileModal(false)}
+        />
+      )}
+
       {showVolunteerModal && activeGroup && (
         <VolunteerProfileModal 
           group={activeGroup}
