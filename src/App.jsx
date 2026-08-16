@@ -54,13 +54,14 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [firebaseConnected, setFirebaseConnected] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [unlockedViaCode, setUnlockedViaCode] = useState(
-    () => sessionStorage.getItem('chandabook_unlocked') === 'true'
-  );
   const [showVolunteerModal, setShowVolunteerModal] = useState(false);
   const [autoOpenExpenseModal, setAutoOpenExpenseModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isFirstTimeProfile, setIsFirstTimeProfile] = useState(false);
+
+  // Pending invite code from URL (applied after user logs in)
+  const [pendingInviteCode, setPendingInviteCode] = useState(null);
+  const [pendingIsInviteMember, setPendingIsInviteMember] = useState(false);
 
   // Guard: skip re-syncing to Firestore when the change came FROM Firestore
   const skipNextSync = useRef(false);
@@ -88,53 +89,64 @@ export default function App() {
 
   // Groups List & Active Group object
   const groupsList = Object.values(allGroups);
-  const isAuthenticatedOrUnlocked = !!(currentUser || unlockedViaCode);
-  const activeGroup = isAuthenticatedOrUnlocked ? (allGroups[activeGroupId] || (groupsList.length > 0 ? groupsList[0] : null)) : null;
+  const isAuthenticated = !!currentUser;
+  const activeGroup = isAuthenticated ? (allGroups[activeGroupId] || (groupsList.length > 0 ? groupsList[0] : null)) : null;
 
   // URL Query Param Invite Link Detector (?inviteMember=CODE or ?join=CODE)
-  // Runs once on mount: checks the local cache first, then falls back to a
-  // direct Firestore lookup so a brand-new device following a WhatsApp
-  // invite link (with nothing cached locally yet) still lands in the group.
+  // Stores the invite code as pending; it will be processed after login.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const inviteCode = (params.get('inviteMember') || params.get('join') || params.get('code') || '').trim();
     if (!inviteCode) return;
 
-    const unlockGroup = (g) => {
-      setGroupId(g.id);
-      setActiveGroupId(g.id);
-      setUnlockedViaCode(true);
-      if (params.get('inviteMember')) {
-        setShowVolunteerModal(true);
-      }
-      // Remove invite params so refresh doesn't re-trigger the join/volunteer flow
-      const cleanUrl = window.location.origin + window.location.pathname;
-      window.history.replaceState({}, '', cleanUrl);
-    };
-
-    const matched = Object.values(loadAllGroups()).find(g => g.code === inviteCode);
-    if (matched) {
-      unlockGroup(matched);
-      return;
+    // Store the invite code to process after login
+    setPendingInviteCode(inviteCode);
+    if (params.get('inviteMember')) {
+      setPendingIsInviteMember(true);
     }
 
-    let cancelled = false;
-    fetchGroupByCode(inviteCode).then(remote => {
-      if (cancelled || !remote) return;
-      setAllGroups(prev => ({ ...prev, [remote.id]: remote }));
-      unlockGroup(remote);
-    });
-    return () => { cancelled = true; };
+    // Remove invite params so refresh doesn't re-trigger
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, '', cleanUrl);
   }, []);
 
-  // Persist unlock state so it survives page refresh
+  // Process pending invite code after user logs in
   useEffect(() => {
-    if (unlockedViaCode) {
-      sessionStorage.setItem('chandabook_unlocked', 'true');
-    } else {
-      sessionStorage.removeItem('chandabook_unlocked');
-    }
-  }, [unlockedViaCode]);
+    if (!currentUser || !pendingInviteCode) return;
+
+    let cancelled = false;
+    const processInvite = async () => {
+      // Check local cache first
+      let matched = Object.values(loadAllGroups()).find(g => g.code === pendingInviteCode);
+
+      // Not cached locally — try Firestore
+      if (!matched) {
+        const remote = await fetchGroupByCode(pendingInviteCode);
+        if (cancelled || !remote) {
+          setPendingInviteCode(null);
+          setPendingIsInviteMember(false);
+          return;
+        }
+        matched = remote;
+        setAllGroups(prev => ({ ...prev, [remote.id]: remote }));
+      }
+
+      if (matched && !cancelled) {
+        setGroupId(matched.id);
+        setActiveGroupId(matched.id);
+        setActiveTab('dashboard');
+        if (pendingIsInviteMember) {
+          setShowVolunteerModal(true);
+        }
+      }
+
+      setPendingInviteCode(null);
+      setPendingIsInviteMember(false);
+    };
+
+    processInvite();
+    return () => { cancelled = true; };
+  }, [currentUser, pendingInviteCode]);
 
   // Check if logged in user has completed basic profile
   const checkMemberProfileCompletion = (user) => {
@@ -266,8 +278,6 @@ export default function App() {
   const handleLogout = async () => {
     await logoutUser();
     setCurrentUser(null);
-    setUnlockedViaCode(false);
-    sessionStorage.removeItem('chandabook_unlocked');
     setGroupId(null);
     setActiveGroupId(null);
   };
@@ -292,7 +302,6 @@ export default function App() {
       }
       setGroupId(matched.id);
       setActiveGroupId(matched.id);
-      setUnlockedViaCode(true);
       setActiveTab('dashboard');
       return true;
     }
@@ -500,12 +509,10 @@ export default function App() {
 
       {/* Main Container */}
       <main className="app-container">
-        {!isAuthenticatedOrUnlocked ? (
+        {!isAuthenticated ? (
           <GuestLoginGate
             currentUser={currentUser}
             onGoogleSignIn={handleGoogleSignIn}
-            onJoinViaCode={handleJoinViaCode}
-            groupsList={groupsList}
             onOpenReceiptLookup={() => setShowReceiptLookup(true)}
           />
         ) : !activeGroup ? (
@@ -678,7 +685,7 @@ export default function App() {
       </main>
 
       {/* Mobile Bottom Tab Navigation */}
-      {isAuthenticatedOrUnlocked && activeGroup && (
+      {isAuthenticated && activeGroup && (
         <MobileBottomNav 
           activeTab={activeTab}
           setActiveTab={setActiveTab}
