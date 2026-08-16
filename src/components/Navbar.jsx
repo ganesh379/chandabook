@@ -116,22 +116,7 @@ export default function Navbar({
 
         {/* Controls - ONLY SHOWN WHEN AUTHENTICATED */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Cloud Sync Status */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '4px 10px',
-            borderRadius: 'var(--radius-full)',
-            background: firebaseConnected ? 'rgba(16, 185, 129, 0.12)' : 'rgba(148, 163, 184, 0.12)',
-            border: `1px solid ${firebaseConnected ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.3)'}`,
-            fontSize: '0.725rem',
-            fontWeight: 600,
-            color: firebaseConnected ? '#34d399' : '#94a3b8'
-          }}>
-            {firebaseConnected ? <Cloud size={13} /> : <CloudOff size={13} />}
-            <span>{firebaseConnected ? 'Cloud' : 'Local'}</span>
-          </div>
+
 
           {isAuthenticated ? (
             <>
