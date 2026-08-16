@@ -52,10 +52,41 @@ import {
   checkAndNotifyMilestones
 } from './utils/notifications';
 
+const VALID_TABS = [
+  'dashboard',
+  'leaderboard',
+  'chanda',
+  'expenses',
+  'pledges',
+  'prasadam',
+  'analytics',
+  'ledger',
+  'settings',
+  'landing'
+];
+
+const getInitialTab = () => {
+  try {
+    const hash = window.location.hash.replace('#', '').trim();
+    if (hash && VALID_TABS.includes(hash)) {
+      return hash;
+    }
+    const urlTab = new URLSearchParams(window.location.search).get('tab');
+    if (urlTab && VALID_TABS.includes(urlTab)) {
+      return urlTab;
+    }
+    const stored = localStorage.getItem('chandabook_active_tab');
+    if (stored && VALID_TABS.includes(stored)) {
+      return stored;
+    }
+  } catch (e) {}
+  return 'dashboard';
+};
+
 export default function App() {
   const [allGroups, setAllGroups] = useState(() => loadAllGroups());
   const [activeGroupId, setGroupId] = useState(() => getActiveGroupId());
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => getInitialTab());
   const [firebaseConnected, setFirebaseConnected] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true); // true until Firebase auth resolves
@@ -306,6 +337,41 @@ export default function App() {
     setShowNotifyBanner(false);
   };
 
+  const handleSelectTab = (tab) => {
+    if (VALID_TABS.includes(tab)) {
+      setActiveTab(tab);
+      try {
+        localStorage.setItem('chandabook_active_tab', tab);
+        if (window.location.hash !== `#${tab}`) {
+          window.history.replaceState(null, '', `#${tab}`);
+        }
+      } catch (e) {}
+    }
+  };
+
+  // Sync tab with URL Hash & LocalStorage
+  useEffect(() => {
+    if (activeTab && VALID_TABS.includes(activeTab)) {
+      try {
+        localStorage.setItem('chandabook_active_tab', activeTab);
+        if (window.location.hash !== `#${activeTab}`) {
+          window.history.replaceState(null, '', `#${activeTab}`);
+        }
+      } catch (e) {}
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '').trim();
+      if (hash && VALID_TABS.includes(hash) && hash !== activeTab) {
+        setActiveTab(hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeTab]);
+
   // Google Login Handler
   const handleGoogleSignIn = async () => {
     try {
@@ -313,7 +379,6 @@ export default function App() {
       if (result?.user) {
         setCurrentUser(result.user);
         syncUserDataOnLogin(result.user);
-        setActiveTab('dashboard');
       }
     } catch (err) {
       alert("Google Login Note: " + (err.message || "Failed to sign in with Google."));
@@ -348,7 +413,6 @@ export default function App() {
       }
       setGroupId(matched.id);
       setActiveGroupId(matched.id);
-      setActiveTab('dashboard');
       if (currentUser?.uid) {
         linkGroupToUser(currentUser.uid, matched.id);
       }
@@ -360,7 +424,6 @@ export default function App() {
   const handleSelectGroup = (id) => {
     setGroupId(id);
     setActiveGroupId(id);
-    setActiveTab('dashboard');
   };
 
   const handleCreateGroup = (newGroup) => {
@@ -389,7 +452,7 @@ export default function App() {
 
   // Trigger Log Expense Redirection & Auto-Open Modal
   const handleOpenAddExpense = () => {
-    setActiveTab('expenses');
+    handleSelectTab('expenses');
     setAutoOpenExpenseModal(true);
   };
 
@@ -409,7 +472,7 @@ export default function App() {
     });
 
     setShowVolunteerModal(false);
-    setActiveTab('leaderboard');
+    handleSelectTab('leaderboard');
   };
 
   // Delete Entire Group (Admin Action)
@@ -504,7 +567,7 @@ export default function App() {
         currentUser={currentUser}
         onGoogleSignIn={handleGoogleSignIn}
         onLogout={handleLogout}
-        onSelectTab={setActiveTab}
+        onSelectTab={handleSelectTab}
         onOpenUpiQr={() => setShowUpiQr(true)}
       />
 
@@ -678,7 +741,7 @@ export default function App() {
                 group={activeGroup}
                 onOpenAddChanda={() => setShowAddChanda(true)}
                 onOpenAddExpense={handleOpenAddExpense}
-                onSelectTab={setActiveTab}
+                onSelectTab={handleSelectTab}
                 onViewReceipt={setSelectedReceipt}
               />
             )}
@@ -754,7 +817,7 @@ export default function App() {
       {isAuthenticated && activeGroup && (
         <MobileBottomNav 
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleSelectTab}
         />
       )}
 
