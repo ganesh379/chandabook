@@ -87,7 +87,7 @@ export default function VolunteerProfileModal({ group, currentUser, onSubmitProf
               value={role}
               onChange={e => setRole(e.target.value)}
             >
-              {COMMITTEE_ROLES.map(r => (
+              {COMMITTEE_ROLES.filter(r => r.id !== 'Admin').map(r => (
                 <option key={r.id} value={r.id}>{r.label}</option>
               ))}
             </select>

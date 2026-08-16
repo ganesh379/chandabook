@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { FESTIVAL_TYPES, generateGroupCode } from '../utils/storage';
 import { fetchGroupByCode } from '../firebase';
+import { downscaleImageFile } from '../utils/image';
 
 export default function GroupSelectorModal({
   groupsMap,
@@ -19,17 +20,19 @@ export default function GroupSelectorModal({
   onCreateGroup,
   onImportGroup,
   onClose,
-  initialMode = 'list'
+  initialMode = 'list',
+  currentUser
 }) {
   const [mode, setMode] = useState(initialMode); // 'list' | 'create' | 'join'
   const [isJoining, setIsJoining] = useState(false);
   
   // Create form state
   const [groupName, setGroupName] = useState('');
+  const [address, setAddress] = useState('');
   const [festivalType, setFestivalType] = useState('vinayaka_chavithi');
   const [targetGoal, setTargetGoal] = useState(75000);
   const [currency, setCurrency] = useState('₹');
-  const [membersInput, setMembersInput] = useState('Rahul (Treasurer), Suresh (President), Pawan, Sneha');
+  const [membersInput, setMembersInput] = useState('');
   const [passcode, setPasscode] = useState('1234');
   const [profilePic, setProfilePic] = useState('');
 
@@ -40,18 +43,17 @@ export default function GroupSelectorModal({
   const groupsList = Object.values(groupsMap || {});
 
   // Profile Picture File Upload Handler
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files && e.target.files[0];
-    if (file) {
-      if (file.size > 3 * 1024 * 1024) {
-        alert("Please select an image smaller than 3MB.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        setProfilePic(uploadEvent.target.result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      alert("Please select an image smaller than 8MB.");
+      return;
+    }
+    try {
+      setProfilePic(await downscaleImageFile(file));
+    } catch (err) {
+      alert(err.message);
     }
   };
 
@@ -59,15 +61,21 @@ export default function GroupSelectorModal({
     e.preventDefault();
     if (!groupName.trim()) return;
 
-    const membersArray = membersInput
+    const typedMembers = membersInput
       .split(',')
       .map(m => m.trim())
       .filter(m => m.length > 0);
+
+    const adminName = (currentUser?.displayName || currentUser?.email?.split('@')[0] || '').trim();
+    const membersArray = adminName && !typedMembers.includes(adminName)
+      ? [adminName, ...typedMembers]
+      : typedMembers;
 
     const newGroup = {
       id: `GROUP-${Date.now()}`,
       code: generateGroupCode(),
       name: groupName.trim(),
+      address: address.trim(),
       festivalType,
       targetGoal: Number(targetGoal) || 50000,
       currency,
@@ -75,6 +83,7 @@ export default function GroupSelectorModal({
       profilePic,
       createdAt: new Date().toISOString(),
       members: membersArray.length > 0 ? membersArray : ['Default Collector'],
+      membersData: adminName ? [{ name: adminName, role: 'Admin' }] : [],
       collections: [],
       expenses: []
     };
@@ -345,13 +354,27 @@ export default function GroupSelectorModal({
 
             <div className="form-group">
               <label className="form-label">Group / Committee Name *</label>
-              <input 
+              <input
                 type="text"
                 className="form-input"
                 placeholder="e.g. Ganesh Utsav Committee - Main Street"
                 value={groupName}
                 onChange={e => setGroupName(e.target.value)}
                 required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Committee / Pandal Address</label>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '-4px', marginBottom: '6px' }}>
+                Shown on official PDF statements. You can add this later in Settings too.
+              </p>
+              <textarea
+                rows="2"
+                className="form-textarea"
+                placeholder="e.g. Lotus Apartments, MG Road, Hyderabad - 500081"
+                value={address}
+                onChange={e => setAddress(e.target.value)}
               />
             </div>
 
@@ -378,8 +401,11 @@ export default function GroupSelectorModal({
             </div>
 
             <div className="form-group">
-              <label className="form-label">Committee Members / Collectors (Comma Separated)</label>
-              <textarea 
+              <label className="form-label">Additional Committee Members / Collectors (Comma Separated)</label>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '-4px', marginBottom: '6px' }}>
+                You'll be added automatically as Admin. List anyone else here.
+              </p>
+              <textarea
                 rows="2"
                 className="form-textarea"
                 value={membersInput}

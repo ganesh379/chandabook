@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import Navbar from './components/Navbar';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -14,7 +14,6 @@ import ReceiptModal from './components/ReceiptModal';
 import ReportsSettings from './components/ReportsSettings';
 import GroupSelectorModal from './components/GroupSelectorModal';
 import PrasadamSchedule from './components/PrasadamSchedule';
-import LadduAuction from './components/LadduAuction';
 import PledgesList from './components/PledgesList';
 import AnalyticsCharts from './components/AnalyticsCharts';
 import ReceiptLookup from './components/ReceiptLookup';
@@ -36,7 +35,9 @@ import {
   signInWithGoogle,
   logoutUser,
   subscribeToAuth,
-  fetchGroupByCode
+  fetchGroupByCode,
+  registerPushToken,
+  subscribeToForegroundPush
 } from './firebase';
 import {
   isNotificationSupported,
@@ -53,11 +54,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [firebaseConnected, setFirebaseConnected] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [unlockedViaCode, setUnlockedViaCode] = useState(false);
+  const [unlockedViaCode, setUnlockedViaCode] = useState(
+    () => sessionStorage.getItem('chandabook_unlocked') === 'true'
+  );
   const [showVolunteerModal, setShowVolunteerModal] = useState(false);
   const [autoOpenExpenseModal, setAutoOpenExpenseModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isFirstTimeProfile, setIsFirstTimeProfile] = useState(false);
+
+  // Guard: skip re-syncing to Firestore when the change came FROM Firestore
+  const skipNextSync = useRef(false);
 
   // Modals state
   const [showAddChanda, setShowAddChanda] = useState(false);
@@ -101,6 +107,9 @@ export default function App() {
       if (params.get('inviteMember')) {
         setShowVolunteerModal(true);
       }
+      // Remove invite params so refresh doesn't re-trigger the join/volunteer flow
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
     };
 
     const matched = Object.values(loadAllGroups()).find(g => g.code === inviteCode);
@@ -117,6 +126,15 @@ export default function App() {
     });
     return () => { cancelled = true; };
   }, []);
+
+  // Persist unlock state so it survives page refresh
+  useEffect(() => {
+    if (unlockedViaCode) {
+      sessionStorage.setItem('chandabook_unlocked', 'true');
+    } else {
+      sessionStorage.removeItem('chandabook_unlocked');
+    }
+  }, [unlockedViaCode]);
 
   // Check if logged in user has completed basic profile
   const checkMemberProfileCompletion = (user) => {
@@ -156,9 +174,10 @@ export default function App() {
   // Sync groups to LocalStorage & Firestore whenever allGroups changes
   useEffect(() => {
     saveAllGroups(allGroups);
-    if (activeGroup && firebaseConnected) {
+    if (activeGroup && firebaseConnected && !skipNextSync.current) {
       syncGroupToFirestore(activeGroup);
     }
+    skipNextSync.current = false;
   }, [allGroups, activeGroupId, firebaseConnected]);
 
   // Real-time Firestore Listener for active group
@@ -166,6 +185,7 @@ export default function App() {
     if (!firebaseConnected || !activeGroup?.id) return;
     const unsubscribe = subscribeToGroupRealtime(activeGroup.id, (remoteGroup) => {
       if (remoteGroup && remoteGroup.id) {
+        skipNextSync.current = true;
         setAllGroups(prev => ({
           ...prev,
           [remoteGroup.id]: remoteGroup
@@ -199,9 +219,29 @@ export default function App() {
 
   const handleEnableNotifications = async () => {
     await requestNotificationPermission();
+    // Also register this device for real push, so committee activity arrives
+    // even with the app closed. Silent if unconfigured — the Settings toggle
+    // is where the actual error is surfaced.
+    if (activeGroup) {
+      await registerPushToken(activeGroup, currentUser?.displayName || '');
+    }
     dismissNotificationBanner();
     setShowNotifyBanner(false);
   };
+
+  // Foreground pushes don't wake the service worker, so show them in-app.
+  useEffect(() => {
+    let unsubscribe = () => {};
+    let cancelled = false;
+    subscribeToForegroundPush(({ title, body }) => {
+      if (!title) return;
+      setMilestoneToast({ title, body });
+      setTimeout(() => setMilestoneToast(null), 6000);
+    }).then(fn => {
+      if (cancelled) fn(); else unsubscribe = fn;
+    });
+    return () => { cancelled = true; unsubscribe(); };
+  }, []);
 
   const handleDismissNotifyBanner = () => {
     dismissNotificationBanner();
@@ -227,6 +267,7 @@ export default function App() {
     await logoutUser();
     setCurrentUser(null);
     setUnlockedViaCode(false);
+    sessionStorage.removeItem('chandabook_unlocked');
     setGroupId(null);
     setActiveGroupId(null);
   };
@@ -437,7 +478,7 @@ export default function App() {
           gap: '8px',
           fontSize: '0.82rem'
         }}>
-          <span>🔔 Get notified in this tab when your festival goal hits 25%, 50%, 75% & 100%!</span>
+          <span>🔔 Get alerts for every new chanda &amp; expense, plus goal milestones — even when the app is closed.</span>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={handleEnableNotifications} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }}>
               Enable
@@ -611,13 +652,6 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'auction' && (
-              <LadduAuction
-                group={activeGroup}
-                onUpdateGroup={handleUpdateActiveGroup}
-              />
-            )}
-
             {activeTab === 'analytics' && (
               <AnalyticsCharts group={activeGroup} />
             )}
@@ -636,6 +670,7 @@ export default function App() {
                 allGroupsMap={allGroups}
                 onReplaceAllGroups={setAllGroups}
                 onRefreshCloudSync={() => setFirebaseConnected(!!initFirebase())}
+                currentUser={currentUser}
               />
             )}
           </>
@@ -678,6 +713,7 @@ export default function App() {
           onImportGroup={handleCreateGroup}
           onClose={() => setShowGroupModal(false)}
           initialMode={groupModalInitialMode}
+          currentUser={currentUser}
         />
       )}
 

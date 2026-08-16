@@ -24,54 +24,8 @@ export default function GuestLoginGate({ currentUser, onGoogleSignIn, onJoinViaC
 
   return (
     <div style={{ maxWidth: '580px', margin: '20px auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* BRANDING CARD */}
-      <div className="glass-card" style={{
-        padding: '36px 24px',
-        textAlign: 'center',
-        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(15, 23, 42, 0.98))',
-        border: '1.5px solid var(--primary-500)',
-        boxShadow: 'var(--shadow-glow)'
-      }}>
-        <div style={{
-          width: '68px',
-          height: '68px',
-          borderRadius: '20px',
-          background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '2.2rem',
-          margin: '0 auto 16px auto',
-          boxShadow: '0 8px 24px rgba(245, 158, 11, 0.4)'
-        }}>
-          📖
-        </div>
-
-        <h2 style={{ fontSize: '1.85rem', color: 'var(--text-main)', fontWeight: 800 }}>
-          Chanda<span style={{ color: 'var(--primary-500)' }}>Book</span>
-        </h2>
-        <p style={{ fontSize: '0.9rem', color: '#cbd5e1', marginTop: '6px', maxWidth: '460px', margin: '6px auto 0 auto' }}>
-          Universal Festival Donation & Daily Expense Ledger for Vinayaka Chavithi, Durga Puja & Community Events
-        </p>
-
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '6px 14px',
-          borderRadius: '20px',
-          background: 'rgba(245, 158, 11, 0.12)',
-          border: '1px solid rgba(245, 158, 11, 0.3)',
-          color: '#fbbf24',
-          fontSize: '0.78rem',
-          fontWeight: 700,
-          marginTop: '16px'
-        }}>
-          <ShieldCheck size={14} /> Verified Real-Time Committee Ledgers
-        </div>
-      </div>
-
-      {/* LOGIN BOX */}
+      {/* LOGIN BOX — kept first so signing in is the immediate action; the
+          branding card sits below as supporting context. */}
       {!currentUser ? (
         <div className="glass-card" style={{ padding: '28px 24px', textAlign: 'center' }}>
           <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', fontWeight: 800, marginBottom: '6px' }}>
@@ -162,6 +116,51 @@ export default function GuestLoginGate({ currentUser, onGoogleSignIn, onJoinViaC
           )}
         </div>
       ) : null}
+
+      {/* BRANDING CARD */}
+      <div className="glass-card" style={{
+        padding: '32px 24px',
+        textAlign: 'center',
+        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(15, 23, 42, 0.98))',
+        border: '1.5px solid var(--primary-500)',
+        boxShadow: 'var(--shadow-glow)'
+      }}>
+        <img
+          src="/icon-192.png"
+          alt=""
+          width="68"
+          height="68"
+          style={{
+            display: 'block',
+            margin: '0 auto 16px auto',
+            borderRadius: '20px',
+            boxShadow: '0 8px 24px rgba(245, 158, 11, 0.4)'
+          }}
+        />
+
+        <h2 style={{ fontSize: '1.85rem', color: 'var(--text-main)', fontWeight: 800 }}>
+          Chanda<span style={{ color: 'var(--primary-500)' }}>Book</span>
+        </h2>
+        <p style={{ fontSize: '0.9rem', color: '#cbd5e1', marginTop: '6px', maxWidth: '460px', margin: '6px auto 0 auto' }}>
+          Universal Festival Donation & Daily Expense Ledger for Vinayaka Chavithi, Durga Puja & Community Events
+        </p>
+
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '6px 14px',
+          borderRadius: '20px',
+          background: 'rgba(245, 158, 11, 0.12)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          color: '#fbbf24',
+          fontSize: '0.78rem',
+          fontWeight: 700,
+          marginTop: '16px'
+        }}>
+          <ShieldCheck size={14} /> Verified Real-Time Committee Ledgers
+        </div>
+      </div>
     </div>
   );
 }

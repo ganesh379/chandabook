@@ -7,7 +7,6 @@ import {
   MoreHorizontal,
   Trophy,
   Utensils,
-  Gavel,
   PieChart,
   CalendarDays,
   Settings,
@@ -24,7 +23,6 @@ const PRIMARY_TABS = [
 const MORE_TABS = [
   { id: 'leaderboard', label: 'Members', icon: Trophy },
   { id: 'prasadam', label: 'Prasadam', icon: Utensils },
-  { id: 'auction', label: 'Laddu Auction', icon: Gavel },
   { id: 'analytics', label: 'Analytics', icon: PieChart },
   { id: 'ledger', label: 'Daily Ledger', icon: CalendarDays },
   { id: 'settings', label: 'Settings', icon: Settings }

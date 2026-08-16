@@ -16,6 +16,7 @@ import {
 import { computeGroupFinancials } from '../utils/storage';
 
 export const COMMITTEE_ROLES = [
+  { id: 'Admin', label: '🛡️ Admin', badgeClass: 'badge-indigo' },
   { id: 'President', label: '👑 President', badgeClass: 'badge-saffron' },
   { id: 'Treasurer', label: '💼 Treasurer / Cashier', badgeClass: 'badge-green' },
   { id: 'Secretary', label: '📜 General Secretary', badgeClass: 'badge-saffron' },
@@ -148,7 +149,7 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
           // Get member role
           const memberObj = (group.membersData || []).find(m => (typeof m === 'object' ? m.name : m) === member.name);
           const memberRole = (typeof memberObj === 'object' ? memberObj.role : '') || (member.name.includes('President') ? 'President' : member.name.includes('Treasurer') ? 'Treasurer' : 'Volunteer');
-          const roleObj = COMMITTEE_ROLES.find(r => r.id === memberRole) || COMMITTEE_ROLES[8];
+          const roleObj = COMMITTEE_ROLES.find(r => r.id === memberRole) || COMMITTEE_ROLES.find(r => r.id === 'Volunteer');
 
           return (
             <div 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShieldCheck, Target, Loader2, AlertTriangle, Smartphone, ExternalLink } from 'lucide-react';
-import { fetchGroupByCode } from '../firebase';
+import { ShieldCheck, Target, Loader2, AlertTriangle, Smartphone, ExternalLink, RefreshCw } from 'lucide-react';
+import { fetchGroupByCodeResult } from '../firebase';
 import { computeGroupFinancials, computeExpenseCategoryBreakdown, FESTIVAL_TYPES } from '../utils/storage';
 import { DonutChart } from './Charts';
 
@@ -10,20 +10,46 @@ export default function TransparencyPage({ code, groupsList }) {
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // A link built while group.code was missing yields "?public=undefined".
+  // Treat that as a malformed link rather than querying for the literal string.
+  const codeIsValid = !!code && code !== 'undefined' && code !== 'null';
+
+  // Depend on the matched group, not on groupsList itself: that array is
+  // rebuilt with a fresh identity on every parent render, which would re-run
+  // this effect (and re-hit the network) for unrelated state changes.
+  const localGroup = useMemo(
+    () => (groupsList || []).find(g => g.code === code) || null,
+    [groupsList, code]
+  );
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const local = (groupsList || []).find(g => g.code === code);
-      if (local) {
-        setGroup(local);
+      setNotFound(false);
+      setLoadError(null);
+
+      if (!codeIsValid) {
+        setNotFound(true);
         setLoading(false);
         return;
       }
-      const remote = await fetchGroupByCode(code);
+
+      if (localGroup) {
+        setGroup(localGroup);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      const { group: remote, error } = await fetchGroupByCodeResult(code);
       if (cancelled) return;
       if (remote) {
         setGroup(remote);
+      } else if (error) {
+        setLoadError(error);
       } else {
         setNotFound(true);
       }
@@ -31,7 +57,7 @@ export default function TransparencyPage({ code, groupsList }) {
     };
     load();
     return () => { cancelled = true; };
-  }, [code]);
+  }, [code, codeIsValid, localGroup, retryCount]);
 
   const financials = useMemo(() => computeGroupFinancials(group), [group]);
   const categoryBreakdown = useMemo(() => computeExpenseCategoryBreakdown(group), [group]);
@@ -66,6 +92,37 @@ export default function TransparencyPage({ code, groupsList }) {
     );
   }
 
+  // A failed lookup is NOT the same as a missing group — saying "not found"
+  // when the read was blocked or the device is offline sends people hunting for
+  // a wrong code that isn't wrong.
+  if (loadError) {
+    const detail = {
+      'permission-denied': "The committee's cloud database is refusing public reads, so this report can't be shown yet. The group admin needs to publish the report settings.",
+      'offline': 'Could not reach the server. Check your internet connection and try again.',
+      'not-configured': 'This app build has no cloud database configured, so shared report links cannot be opened.',
+      'unknown': 'Something went wrong while loading this report. Please try again.'
+    }[loadError];
+
+    return (
+      <div style={{ maxWidth: '480px', margin: '60px auto', textAlign: 'center' }} className="glass-card">
+        <div style={{ padding: '32px 24px' }}>
+          <AlertTriangle size={36} style={{ color: '#fbbf24', marginBottom: '12px' }} />
+          <h2 style={{ fontSize: '1.25rem', color: 'var(--text-main)' }}>Couldn't Load Report</h2>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+            {detail}
+          </p>
+          <button
+            onClick={() => setRetryCount(c => c + 1)}
+            className="btn btn-primary"
+            style={{ marginTop: '18px', gap: '6px' }}
+          >
+            <RefreshCw size={15} /> Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (notFound || !group) {
     return (
       <div style={{ maxWidth: '480px', margin: '60px auto', textAlign: 'center' }} className="glass-card">
@@ -73,7 +130,9 @@ export default function TransparencyPage({ code, groupsList }) {
           <AlertTriangle size={36} style={{ color: '#f87171', marginBottom: '12px' }} />
           <h2 style={{ fontSize: '1.25rem', color: 'var(--text-main)' }}>Report Not Found</h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-            No public group matches code "{code}". Please check the link with your committee.
+            {codeIsValid
+              ? <>No public group matches code "{code}". Please check the link with your committee.</>
+              : <>This report link is incomplete or malformed. Please ask your committee to share the link again.</>}
           </p>
         </div>
       </div>

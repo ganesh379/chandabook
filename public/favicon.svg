@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ChandaBook">
+  <title>ChandaBook</title>
+  <!-- Favicon variant: full-bleed disc and bolder masses than the 192/512 app
+       icons, because the pedestal and wick detail disappear below ~24px.
+       The saffron disc is deliberately opaque so the mark stays legible on
+       both light and dark browser tab strips. -->
+  <circle cx="32" cy="32" r="32" fill="#f59e0b"/>
+  <g fill="#fff">
+    <!-- flame -->
+    <path d="M32 5c5 10 9.5 13.5 9.5 18a9.5 9.5 0 0 1-19 0c0-4.5 4.5-8 9.5-18z"/>
+    <!-- bowl: thick rim + deep bowl, overlapping the flame so it reads as one lamp -->
+    <path d="M6 31h52v4a26 17 0 0 1-52 0z"/>
+  </g>
+</svg>

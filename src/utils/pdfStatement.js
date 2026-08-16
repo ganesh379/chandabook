@@ -45,6 +45,23 @@ function drawTableRow(doc, y, cols, widths, opts = {}) {
 
 const fmt = (n, currencySymbol) => `${currencySymbol}${Number(n || 0).toLocaleString('en-IN')}`;
 
+// jsPDF needs the pixel dimensions to draw the logo without stretching it,
+// and the browser Image API is the only way to get those from a data URL.
+function getImageDimensions(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+function detectImageFormat(dataUrl) {
+  const match = /^data:image\/(\w+);base64,/i.exec(dataUrl || '');
+  const ext = (match?.[1] || 'jpeg').toUpperCase();
+  return ext === 'JPG' ? 'JPEG' : ext;
+}
+
 // jsPDF is only needed for this one action, so it's loaded on demand
 // instead of bloating the initial app bundle every visitor downloads.
 export async function generateFinancialStatementPDF(group) {
@@ -53,27 +70,73 @@ export async function generateFinancialStatementPDF(group) {
   const financials = computeGroupFinancials(group);
   const categoryBreakdown = computeExpenseCategoryBreakdown(group);
   const festival = FESTIVAL_TYPES.find(f => f.id === group.festivalType) || FESTIVAL_TYPES[0];
-  const currency = group.currency || 'Rs.'; // jsPDF core font lacks the ₹ glyph
+  // jsPDF's built-in Helvetica font has no ₹ glyph — it prints as a stray
+  // "1"-like symbol, so swap it for "Rs." in the PDF regardless of what's
+  // shown on-screen. Other symbols (e.g. $) are in the font's charset.
+  const currency = group.currency === '₹' ? 'Rs. ' : (group.currency || 'Rs. ');
   const collections = group.collections || [];
   const expenses = group.expenses || [];
 
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  let y = PAGE_MARGIN;
+  const headerTop = PAGE_MARGIN;
+  const LOGO_BOX = 52;
+  let y = headerTop;
+  let textX = PAGE_MARGIN;
+
+  // Letterhead logo (top-left) — text starts beside it if one is set
+  if (group.profilePic) {
+    try {
+      const dims = await getImageDimensions(group.profilePic);
+      const format = detectImageFormat(group.profilePic);
+      let drawW = LOGO_BOX, drawH = LOGO_BOX;
+      if (dims?.width && dims?.height) {
+        const scale = Math.min(LOGO_BOX / dims.width, LOGO_BOX / dims.height);
+        drawW = dims.width * scale;
+        drawH = dims.height * scale;
+      }
+      doc.addImage(
+        group.profilePic, format,
+        PAGE_MARGIN + (LOGO_BOX - drawW) / 2,
+        headerTop + (LOGO_BOX - drawH) / 2,
+        drawW, drawH
+      );
+      textX = PAGE_MARGIN + LOGO_BOX + 14;
+    } catch (err) {
+      // Unsupported/corrupt logo image — fall back to a text-only header
+    }
+  }
 
   // Header
+  y += 14;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(...SAFFRON);
-  doc.text(group.name || 'Festival Committee', PAGE_MARGIN, y);
-  y += 20;
+  doc.text(group.name || 'Festival Committee', textX, y);
+  y += 18;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10.5);
   doc.setTextColor(...MUTED);
-  doc.text(`${festival.name} - Official Financial Statement`, PAGE_MARGIN, y);
+  doc.text(`${festival.name} - Official Financial Statement`, textX, y);
   y += 14;
-  doc.text(`Generated on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}  |  Group Code: ${group.code || '-'}`, PAGE_MARGIN, y);
-  y += 26;
+
+  if (group.address) {
+    const addressLines = doc.splitTextToSize(group.address, CONTENT_WIDTH - (textX - PAGE_MARGIN));
+    addressLines.forEach(line => {
+      doc.text(line, textX, y);
+      y += 12;
+    });
+  }
+
+  doc.text(`Generated on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}  |  Group Code: ${group.code || '-'}`, textX, y);
+  y += 16;
+
+  y = Math.max(y, headerTop + LOGO_BOX + 10);
+
+  doc.setDrawColor(...SAFFRON);
+  doc.setLineWidth(1.3);
+  doc.line(PAGE_MARGIN, y, PAGE_MARGIN + CONTENT_WIDTH, y);
+  y += 22;
 
   // Summary boxes
   const boxWidth = (CONTENT_WIDTH - 20) / 3;

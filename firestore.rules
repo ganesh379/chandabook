@@ -56,6 +56,35 @@ service cloud.firestore {
       }
     }
 
+    // FCM device tokens for committee activity notifications.
+    //
+    // A device writes only its own token document (the doc ID *is* the token,
+    // so it cannot touch anyone else's without already knowing their token).
+    // Reads are denied outright: the token list is a distribution list and
+    // nothing in the client ever needs to enumerate it — only the Cloud
+    // Function does, and the Admin SDK bypasses these rules entirely.
+    //
+    // Same caveat as groups above: with no auth requirement, a determined
+    // party could register junk tokens. Sends to dead tokens fail harmlessly
+    // and get pruned automatically, so the blast radius is wasted quota.
+    match /pushTokens/{token} {
+      allow read: if false;
+      // The document ID must BE the token, so a device can only ever write the
+      // record for a token it already holds.
+      allow create, update: if isValidToken(request.resource.data)
+                            && request.resource.data.token == token;
+      // A device must be able to turn notifications back off.
+      allow delete: if true;
+
+      function isValidToken(data) {
+        return data.keys().hasAll(['token', 'groupId'])
+          && data.token is string
+          && data.token.size() > 20 && data.token.size() < 500
+          && data.groupId is string
+          && data.groupId.size() > 0 && data.groupId.size() < 200;
+      }
+    }
+
     // Deny everything else by default
     match /{document=**} {
       allow read, write: if false;

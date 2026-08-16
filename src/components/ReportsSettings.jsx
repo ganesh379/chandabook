@@ -13,20 +13,34 @@ import {
   Globe,
   Copy,
   Check,
-  Share2
+  Share2,
+  Camera,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import { FESTIVAL_TYPES } from '../utils/storage';
 import { generateFinancialStatementPDF } from '../utils/pdfStatement';
+import {
+  syncGroupToFirestoreResult,
+  registerPushToken,
+  unregisterPushToken,
+  getStoredPushToken,
+  isPushConfigured
+} from '../firebase';
+import { downscaleImageFile, downscaleDataUrl, dataUrlBytes } from '../utils/image';
 
-export default function ReportsSettings({ 
-  group, 
-  onUpdateGroup, 
-  onDeleteGroup, 
-  allGroupsMap, 
+export default function ReportsSettings({
+  group,
+  onUpdateGroup,
+  onDeleteGroup,
+  allGroupsMap,
   onReplaceAllGroups,
-  onRefreshCloudSync 
+  onRefreshCloudSync,
+  currentUser
 }) {
   const [name, setName] = useState(group?.name || '');
+  const [address, setAddress] = useState(group?.address || '');
+  const [profilePic, setProfilePic] = useState(group?.profilePic || '');
   const [festivalType, setFestivalType] = useState(group?.festivalType || 'vinayaka_chavithi');
   const [targetGoal, setTargetGoal] = useState(group?.targetGoal || 75000);
   const [upiId, setUpiId] = useState(group?.upiId || '');
@@ -34,15 +48,100 @@ export default function ReportsSettings({
   const [savedMsg, setSavedMsg] = useState('');
   const [publicLinkCopied, setPublicLinkCopied] = useState(false);
 
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      alert("Please select an image smaller than 8MB.");
+      return;
+    }
+    try {
+      setProfilePic(await downscaleImageFile(file));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const publicTransparencyUrl = `${window.location.origin}/?public=${group?.code}`;
 
-  const handleCopyPublicLink = () => {
+  // The public link only works for other people if the group has actually
+  // reached the cloud — a locally-only group renders as "Report Not Found" on
+  // every device but this one. So publish first, then hand out the link.
+  const [publishState, setPublishState] = useState(null); // null | 'publishing' | 'ok' | 'failed'
+  const [publishError, setPublishError] = useState(null);
+  const [logoRepaired, setLogoRepaired] = useState(false);
+  const isLocalhostLink = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|$)/i.test(window.location.origin);
+  const hasCode = !!group?.code;
+  const logoKB = Math.round(dataUrlBytes(group?.profilePic) / 1024);
+
+  // Per-device push notification opt-in
+  const [pushEnabled, setPushEnabled] = useState(!!getStoredPushToken());
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState(null);
+  // The Web Push key is a build constant, so there is nothing to configure
+  // here — members only ever tap Enable.
+  const pushConfigured = isPushConfigured();
+
+  const handleEnablePush = async () => {
+    setPushBusy(true);
+    setPushError(null);
+    const { ok, error } = await registerPushToken(group, currentUser?.displayName || '');
+    setPushEnabled(ok);
+    setPushError(ok ? null : error);
+    setPushBusy(false);
+  };
+
+  const handleDisablePush = async () => {
+    setPushBusy(true);
+    await unregisterPushToken();
+    setPushEnabled(false);
+    setPushError(null);
+    setPushBusy(false);
+  };
+
+
+  const publishReport = async () => {
+    if (!group?.id) return false;
+    setPublishState('publishing');
+
+    let result = await syncGroupToFirestoreResult(group);
+
+    // Groups saved before logo uploads were downscaled carry a multi-MB logo
+    // that blocks every sync. Repair it in place rather than asking the admin
+    // to hunt down and re-upload the image themselves.
+    if (!result.ok && result.error === 'too-large' && group.profilePic) {
+      try {
+        const shrunk = await downscaleDataUrl(group.profilePic);
+        if (shrunk && shrunk.length < group.profilePic.length) {
+          const repaired = { ...group, profilePic: shrunk };
+          const retry = await syncGroupToFirestoreResult(repaired);
+          if (retry.ok) {
+            // Only persist once we know it actually resolved the problem.
+            onUpdateGroup(repaired);
+            setProfilePic(shrunk);
+            setLogoRepaired(true);
+          }
+          result = retry;
+        }
+      } catch (err) {
+        console.warn('Could not shrink the stored logo:', err);
+      }
+    }
+
+    setPublishError(result.ok ? null : { error: result.error, detail: result.detail });
+    setPublishState(result.ok ? 'ok' : 'failed');
+    return result.ok;
+  };
+
+  const handleCopyPublicLink = async () => {
+    await publishReport();
     navigator.clipboard.writeText(publicTransparencyUrl);
     setPublicLinkCopied(true);
     setTimeout(() => setPublicLinkCopied(false), 2500);
   };
 
-  const handleSharePublicLink = () => {
+  const handleSharePublicLink = async () => {
+    await publishReport();
     const text = encodeURIComponent(
       `🚩 *${group?.name || 'ChandaBook'} - Public Chanda Report* 🚩\n` +
       `View live donation totals & expenses (no login needed):\n${publicTransparencyUrl}`
@@ -70,6 +169,8 @@ export default function ReportsSettings({
     onUpdateGroup({
       ...group,
       name: name.trim(),
+      address: address.trim(),
+      profilePic,
       festivalType,
       targetGoal: Number(targetGoal) || 0,
       upiId: upiId.trim(),
@@ -167,14 +268,62 @@ export default function ReportsSettings({
         </h3>
 
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <label style={{ position: 'relative', display: 'block', width: '64px', height: '64px', cursor: 'pointer', flexShrink: 0 }}>
+              {profilePic ? (
+                <img
+                  src={profilePic}
+                  alt="Committee Logo"
+                  style={{ width: '64px', height: '64px', borderRadius: '16px', objectFit: 'cover', border: '2px solid var(--primary-500)' }}
+                />
+              ) : (
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '16px',
+                  background: 'var(--bg-input)',
+                  border: '2px dashed var(--primary-500)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--primary-500)'
+                }}>
+                  <Camera size={20} />
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+              />
+            </label>
+            <div>
+              <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Committee Logo</p>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tap to upload. Shown on official PDF statements.</p>
+            </div>
+          </div>
+
           <div className="form-group">
             <label className="form-label">Committee Name</label>
-            <input 
+            <input
               type="text"
               className="form-input"
               value={name}
               onChange={e => setName(e.target.value)}
               required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Committee / Pandal Address</label>
+            <textarea
+              rows="2"
+              className="form-textarea"
+              placeholder="e.g. Lotus Apartments, MG Road, Hyderabad - 500081"
+              value={address}
+              onChange={e => setAddress(e.target.value)}
             />
           </div>
 
@@ -282,6 +431,49 @@ export default function ReportsSettings({
         </div>
       </div>
 
+      {/* COMMITTEE ACTIVITY NOTIFICATIONS */}
+      <div className="glass-card" style={{ padding: '24px' }}>
+        <h3 style={{ fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Bell size={18} style={{ color: '#a78bfa' }} /> Committee Activity Alerts
+        </h3>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+          Push a notification to every opted-in member's phone whenever a new chanda or expense is recorded — even when the app is closed. Each member enables this on their own device.
+        </p>
+
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {pushEnabled ? (
+            <button onClick={handleDisablePush} disabled={pushBusy} className="btn btn-secondary" style={{ gap: '6px' }}>
+              <BellOff size={16} /> {pushBusy ? 'Working...' : 'Turn Off On This Device'}
+            </button>
+          ) : (
+            <button onClick={handleEnablePush} disabled={pushBusy || !pushConfigured} className="btn btn-primary" style={{ gap: '6px' }}>
+              <Bell size={16} /> {pushBusy ? 'Enabling...' : 'Enable On This Device'}
+            </button>
+          )}
+          {pushEnabled && (
+            <span style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: 700 }}>
+              ✅ This device will receive alerts
+            </span>
+          )}
+        </div>
+
+        {pushError && (
+          <p style={{ fontSize: '0.78rem', color: '#f87171', marginTop: '12px' }}>
+            {{
+              'no-vapid-key': 'Push notifications are not configured in this build of the app. This is a deployment setting, not something you can fix here — contact whoever manages the app.',
+              'denied': 'Your browser blocked notifications. Allow them for this site in the browser address-bar settings, then try again.',
+              'unsupported': 'This browser does not support push notifications. On iPhone, add the app to your Home Screen first — iOS only allows push for installed web apps.',
+              'no-token': 'Could not obtain a device token from Google. Try again in a moment.',
+              'permission-denied': 'The database rejected the device registration — deploy the updated Firestore rules (firebase deploy --only firestore:rules).',
+              'offline': 'Could not reach the server. Check your connection and try again.',
+              'not-configured': 'No cloud database is configured for this build.',
+              'unknown': 'Could not enable notifications. Check the browser console for details.'
+            }[pushError] || 'Could not enable notifications.'}
+          </p>
+        )}
+
+      </div>
+
       {/* PUBLIC TRANSPARENCY REPORT */}
       <div className="glass-card" style={{ padding: '24px' }}>
         <h3 style={{ fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -292,14 +484,52 @@ export default function ReportsSettings({
         </p>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button onClick={handleCopyPublicLink} className="btn btn-secondary" style={{ gap: '6px' }}>
+          <button onClick={handleCopyPublicLink} disabled={!hasCode || publishState === 'publishing'} className="btn btn-secondary" style={{ gap: '6px' }}>
             {publicLinkCopied ? <Check size={16} style={{ color: '#34d399' }} /> : <Copy size={16} />}
-            {publicLinkCopied ? 'Link Copied!' : 'Copy Public Link'}
+            {publishState === 'publishing' ? 'Publishing...' : publicLinkCopied ? 'Link Copied!' : 'Copy Public Link'}
           </button>
-          <button onClick={handleSharePublicLink} className="btn btn-whatsapp" style={{ gap: '6px' }}>
+          <button onClick={handleSharePublicLink} disabled={!hasCode || publishState === 'publishing'} className="btn btn-whatsapp" style={{ gap: '6px' }}>
             <Share2 size={16} /> Share on WhatsApp
           </button>
         </div>
+
+        {!hasCode && (
+          <p style={{ fontSize: '0.78rem', color: '#f87171', marginTop: '12px' }}>
+            This group has no 6-digit code yet, so a public report link can't be created. Re-create the group, or restore it from a backup that includes its code.
+          </p>
+        )}
+
+        {publishState === 'failed' && (
+          <div style={{ fontSize: '0.78rem', color: '#f87171', marginTop: '12px' }}>
+            <p style={{ fontWeight: 700 }}>
+              ⚠️ Could not publish this report — the link will show “Couldn't Load Report” for everyone else.
+            </p>
+            <p style={{ marginTop: '6px' }}>
+              {{
+                'too-large': logoKB > 200
+                  ? `This group's data is ${publishError?.detail || 'too big'}, over Firestore's 1 MB per-group limit, and the committee logo accounts for ~${logoKB} KB of it. Automatic compression didn't bring it under — remove the logo above, then save and try again.`
+                  : `This group's data is ${publishError?.detail || 'too big'}, over Firestore's 1 MB per-group limit. The logo is only ~${logoKB} KB, so the donation and expense records are the bulk — export a CSV backup, then delete some older records to publish again.`,
+                'permission-denied': 'The cloud database is rejecting the write. The Firestore security rules likely have not been deployed yet — run: npx firebase-tools deploy --only firestore:rules',
+                'offline': 'Could not reach the server. Check your internet connection, then press Refresh Cloud Sync above.',
+                'not-configured': 'No cloud database is configured for this app build, so reports cannot be published.',
+                'unknown': 'An unexpected error occurred while publishing. Check the browser console for details.'
+              }[publishError?.error] || 'An unexpected error occurred while publishing.'}
+            </p>
+          </div>
+        )}
+
+        {publishState === 'ok' && (
+          <p style={{ fontSize: '0.78rem', color: '#34d399', marginTop: '12px' }}>
+            ✅ Report published to the cloud — this link now works on any device.
+            {logoRepaired && ' Your oversized committee logo was compressed automatically to fit.'}
+          </p>
+        )}
+
+        {isLocalhostLink && (
+          <p style={{ fontSize: '0.78rem', color: '#fbbf24', marginTop: '12px' }}>
+            ⚠️ You're viewing the app on <strong>{window.location.origin}</strong>, so the copied link points at this computer only and won't open for anyone else. Share links from your deployed site instead.
+          </p>
+        )}
       </div>
 
       {/* DANGER ZONE: DELETE GROUP */}
