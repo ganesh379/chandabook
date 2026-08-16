@@ -54,6 +54,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [firebaseConnected, setFirebaseConnected] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true); // true until Firebase auth resolves
   const [showVolunteerModal, setShowVolunteerModal] = useState(false);
   const [autoOpenExpenseModal, setAutoOpenExpenseModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -165,6 +166,7 @@ export default function App() {
 
     const unsubscribeAuth = subscribeToAuth((user) => {
       setCurrentUser(user);
+      setAuthLoading(false);
       if (user) {
         checkMemberProfileCompletion(user);
       }
@@ -509,9 +511,18 @@ export default function App() {
 
       {/* Main Container */}
       <main className="app-container">
-        {!isAuthenticated ? (
+        {authLoading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '16px' }}>
+            <div style={{
+              width: '44px', height: '44px', border: '3.5px solid rgba(245, 158, 11, 0.2)',
+              borderTopColor: '#f59e0b', borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite'
+            }} />
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>Loading ChandaBook...</p>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        ) : !isAuthenticated ? (
           <GuestLoginGate
-            currentUser={currentUser}
             onGoogleSignIn={handleGoogleSignIn}
             onOpenReceiptLookup={() => setShowReceiptLookup(true)}
           />
