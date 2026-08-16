@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, Phone, MapPin, Save, X, LogOut, CheckCircle, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { saveUserProfile } from '../firebase';
 
 export default function UserProfileModal({ currentUser, onLogout, onClose, isFirstTime = false }) {
   const savedProfile = JSON.parse(localStorage.getItem('chandabook_user_profile') || '{}');
@@ -9,14 +10,16 @@ export default function UserProfileModal({ currentUser, onLogout, onClose, isFir
   const [phone, setPhone] = useState(savedProfile.phone || '');
   const [city, setCity] = useState(savedProfile.city || '');
   const [savedMsg, setSavedMsg] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (!fullName.trim() || !phone.trim()) {
-      alert("Please enter your Full Name and Mobile Number.");
+    if (!fullName.trim()) {
+      alert("Please enter your Full Name.");
       return;
     }
 
+    setIsSaving(true);
     try {
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
     } catch (err) {}
@@ -26,15 +29,22 @@ export default function UserProfileModal({ currentUser, onLogout, onClose, isFir
       phone: phone.trim(),
       city: city.trim(),
       email: currentUser?.email || '',
+      photoURL: currentUser?.photoURL || '',
       isProfileComplete: true
     };
 
     localStorage.setItem('chandabook_user_profile', JSON.stringify(updated));
+
+    if (currentUser?.uid) {
+      await saveUserProfile(currentUser.uid, updated);
+    }
+
+    setIsSaving(false);
     setSavedMsg("Profile saved successfully!");
     setTimeout(() => {
       setSavedMsg('');
       onClose();
-    }, 1200);
+    }, 800);
   };
 
   return (

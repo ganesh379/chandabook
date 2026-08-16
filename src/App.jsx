@@ -37,7 +37,11 @@ import {
   subscribeToAuth,
   fetchGroupByCode,
   registerPushToken,
-  subscribeToForegroundPush
+  subscribeToForegroundPush,
+  fetchUserProfile,
+  saveUserProfile,
+  linkGroupToUser,
+  fetchUserGroupsFromFirestore
 } from './firebase';
 import {
   isNotificationSupported,
@@ -136,6 +140,9 @@ export default function App() {
         setGroupId(matched.id);
         setActiveGroupId(matched.id);
         setActiveTab('dashboard');
+        if (currentUser?.uid) {
+          linkGroupToUser(currentUser.uid, matched.id);
+        }
         if (pendingIsInviteMember) {
           setShowVolunteerModal(true);
         }
@@ -149,13 +156,50 @@ export default function App() {
     return () => { cancelled = true; };
   }, [currentUser, pendingInviteCode]);
 
-  // Check if logged in user has completed basic profile
-  const checkMemberProfileCompletion = (user) => {
+  // Sync user profile & groups from Firestore on login
+  const syncUserDataOnLogin = async (user) => {
     if (!user) return;
-    const profile = JSON.parse(localStorage.getItem('chandabook_user_profile') || '{}');
-    if (!profile.isProfileComplete || !profile.phone) {
-      setIsFirstTimeProfile(true);
-      setShowProfileModal(true);
+    try {
+      // 1. Fetch user profile from Firestore or initialize from Google
+      const remoteProfile = await fetchUserProfile(user.uid);
+      if (remoteProfile) {
+        localStorage.setItem('chandabook_user_profile', JSON.stringify(remoteProfile));
+      } else {
+        // Auto-save Google account info so user profile exists in Firestore permanently
+        const defaultProfile = {
+          fullName: user.displayName || 'Committee Member',
+          email: user.email || '',
+          photoURL: user.photoURL || '',
+          phone: '',
+          city: '',
+          isProfileComplete: true
+        };
+        localStorage.setItem('chandabook_user_profile', JSON.stringify(defaultProfile));
+        await saveUserProfile(user.uid, defaultProfile);
+      }
+
+      // 2. Fetch and restore user's groups from Firestore (across devices / cleared storage)
+      const remoteGroups = await fetchUserGroupsFromFirestore(user.uid);
+      if (remoteGroups && remoteGroups.length > 0) {
+        setAllGroups(prev => {
+          const merged = { ...prev };
+          remoteGroups.forEach(g => {
+            if (g && g.id) {
+              merged[g.id] = g;
+            }
+          });
+          saveAllGroups(merged);
+          return merged;
+        });
+
+        // If no active group selected, select the first remote group
+        if (!activeGroupId) {
+          setGroupId(remoteGroups[0].id);
+          setActiveGroupId(remoteGroups[0].id);
+        }
+      }
+    } catch (err) {
+      console.warn("User data sync error:", err);
     }
   };
 
@@ -168,7 +212,7 @@ export default function App() {
       setCurrentUser(user);
       setAuthLoading(false);
       if (user) {
-        checkMemberProfileCompletion(user);
+        syncUserDataOnLogin(user);
       }
     });
 
@@ -268,7 +312,7 @@ export default function App() {
       const result = await signInWithGoogle();
       if (result?.user) {
         setCurrentUser(result.user);
-        checkMemberProfileCompletion(result.user);
+        syncUserDataOnLogin(result.user);
         setActiveTab('dashboard');
       }
     } catch (err) {
@@ -305,6 +349,9 @@ export default function App() {
       setGroupId(matched.id);
       setActiveGroupId(matched.id);
       setActiveTab('dashboard');
+      if (currentUser?.uid) {
+        linkGroupToUser(currentUser.uid, matched.id);
+      }
       return true;
     }
     return false;
@@ -317,12 +364,20 @@ export default function App() {
   };
 
   const handleCreateGroup = (newGroup) => {
+    const groupWithCreator = {
+      ...newGroup,
+      ownerUid: currentUser?.uid || null,
+      creatorEmail: currentUser?.email || null
+    };
     setAllGroups(prev => {
-      const next = { ...prev, [newGroup.id]: newGroup };
+      const next = { ...prev, [groupWithCreator.id]: groupWithCreator };
       saveAllGroups(next);
       return next;
     });
-    handleSelectGroup(newGroup.id);
+    handleSelectGroup(groupWithCreator.id);
+    if (currentUser?.uid) {
+      linkGroupToUser(currentUser.uid, groupWithCreator.id);
+    }
   };
 
   const handleUpdateActiveGroup = (updatedGroup) => {

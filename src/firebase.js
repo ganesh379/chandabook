@@ -212,6 +212,85 @@ export const syncGroupToFirestore = async (groupData) => {
 };
 
 // ---------------------------------------------------------------------------
+// User Profile & Multi-Device Group Syncing (Cloud Firestore)
+// ---------------------------------------------------------------------------
+
+export const fetchUserProfile = async (uid) => {
+  if (!db) initFirebase();
+  if (!db || !uid) return null;
+  try {
+    const userRef = doc(db, 'users', uid);
+    const snap = await withTimeout(getDoc(userRef));
+    if (snap.exists()) {
+      return snap.data();
+    }
+    return null;
+  } catch (err) {
+    console.warn("Failed to fetch user profile from Firestore:", err);
+    return null;
+  }
+};
+
+export const saveUserProfile = async (uid, profileData) => {
+  if (!db) initFirebase();
+  if (!db || !uid) return false;
+  try {
+    const userRef = doc(db, 'users', uid);
+    const payload = {
+      ...profileData,
+      updatedAt: new Date().toISOString()
+    };
+    await withTimeout(setDoc(userRef, payload, { merge: true }));
+    return true;
+  } catch (err) {
+    console.warn("Failed to save user profile to Firestore:", err);
+    return false;
+  }
+};
+
+export const linkGroupToUser = async (uid, groupId) => {
+  if (!db) initFirebase();
+  if (!db || !uid || !groupId) return false;
+  try {
+    const userRef = doc(db, 'users', uid);
+    const snap = await withTimeout(getDoc(userRef));
+    const currentGroupIds = snap.exists() ? (snap.data().groupIds || []) : [];
+    if (!currentGroupIds.includes(groupId)) {
+      const updatedGroupIds = [...currentGroupIds, groupId];
+      await withTimeout(setDoc(userRef, { groupIds: updatedGroupIds, updatedAt: new Date().toISOString() }, { merge: true }));
+    }
+    return true;
+  } catch (err) {
+    console.warn("Failed to link group to user in Firestore:", err);
+    return false;
+  }
+};
+
+export const fetchUserGroupsFromFirestore = async (uid) => {
+  if (!db) initFirebase();
+  if (!db || !uid) return [];
+  const foundGroups = {};
+  try {
+    const userSnap = await withTimeout(getDoc(doc(db, 'users', uid)));
+    if (userSnap.exists()) {
+      const groupIds = userSnap.data().groupIds || [];
+      for (const gId of groupIds) {
+        try {
+          const gSnap = await withTimeout(getDoc(doc(db, 'groups', gId)));
+          if (gSnap.exists()) {
+            foundGroups[gSnap.id] = gSnap.data();
+          }
+        } catch (e) {}
+      }
+    }
+    return Object.values(foundGroups);
+  } catch (err) {
+    console.warn("Failed to fetch user groups from Firestore:", err);
+    return Object.values(foundGroups);
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Push notifications (Firebase Cloud Messaging)
 //
 // Each device that opts in stores its FCM token in a top-level `pushTokens`
