@@ -17,6 +17,7 @@ import 'pledges_screen.dart';
 import 'prasadam_schedule_screen.dart';
 import 'transparency_screen.dart';
 import 'receipt_lookup_screen.dart';
+import 'group_selector_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -28,7 +29,7 @@ class DashboardScreen extends StatelessWidget {
     final financials = state.financials;
 
     if (group == null) {
-      return const Center(child: CircularProgressIndicator());
+      return _NoGroupEmptyState(state: state);
     }
 
     return RefreshIndicator(
@@ -503,6 +504,52 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoGroupEmptyState extends StatelessWidget {
+  final AppStateProvider state;
+
+  const _NoGroupEmptyState({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🪔', style: TextStyle(fontSize: 56)),
+            const SizedBox(height: 16),
+            Text(
+              'Welcome${state.userProfile != null ? ', ${state.userProfile!.fullName.split(' ').first}' : ''}!',
+              style: Theme.of(context).textTheme.headlineMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Create your first festival group, or join one using a\n6-digit code or invite link from your committee.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GroupSelectorScreen()),
+                ),
+                icon: const Icon(Icons.add_circle_outline),
+                label: const Text('Create or Join a Festival Group', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
             ),
           ],
         ),

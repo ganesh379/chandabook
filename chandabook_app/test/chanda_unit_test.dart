@@ -1,7 +1,6 @@
 import '../lib/models/collection_model.dart';
 import '../lib/models/expense_model.dart';
 import '../lib/models/pledge_model.dart';
-import '../lib/models/prasadam_model.dart';
 import '../lib/models/group_model.dart';
 import '../lib/core/utils/number_to_words.dart';
 

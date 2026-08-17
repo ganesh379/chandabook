@@ -2,6 +2,7 @@ import 'collection_model.dart';
 import 'expense_model.dart';
 import 'pledge_model.dart';
 import 'prasadam_model.dart';
+import 'group_member_model.dart';
 
 class GroupModel {
   final String id;
@@ -15,6 +16,7 @@ class GroupModel {
   final String year;
   final String? bannerUrl;
   final List<String> members;
+  final List<GroupMemberModel> memberAccounts;
   final List<CollectionModel> collections;
   final List<ExpenseModel> expenses;
   final List<PledgeModel> pledges;
@@ -35,6 +37,7 @@ class GroupModel {
     this.year = '2026',
     this.bannerUrl,
     this.members = const ['Rahul (Treasurer)', 'Vikram', 'Suresh'],
+    this.memberAccounts = const [],
     this.collections = const [],
     this.expenses = const [],
     this.pledges = const [],
@@ -63,6 +66,10 @@ class GroupModel {
               .where((m) => m.isNotEmpty)
               .toList() ??
           ['Treasurer', 'President'],
+      memberAccounts: (json['memberAccounts'] as List<dynamic>?)
+              ?.map((e) => GroupMemberModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
       collections: (json['collections'] as List<dynamic>?)
               ?.map((e) => CollectionModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -98,6 +105,7 @@ class GroupModel {
       'year': year,
       'bannerUrl': bannerUrl,
       'members': members,
+      'memberAccounts': memberAccounts.map((m) => m.toJson()).toList(),
       'collections': collections.map((c) => c.toJson()).toList(),
       'expenses': expenses.map((e) => e.toJson()).toList(),
       'pledges': pledges.map((p) => p.toJson()).toList(),
@@ -120,6 +128,7 @@ class GroupModel {
     String? year,
     String? bannerUrl,
     List<String>? members,
+    List<GroupMemberModel>? memberAccounts,
     List<CollectionModel>? collections,
     List<ExpenseModel>? expenses,
     List<PledgeModel>? pledges,
@@ -140,6 +149,7 @@ class GroupModel {
       year: year ?? this.year,
       bannerUrl: bannerUrl ?? this.bannerUrl,
       members: members ?? this.members,
+      memberAccounts: memberAccounts ?? this.memberAccounts,
       collections: collections ?? this.collections,
       expenses: expenses ?? this.expenses,
       pledges: pledges ?? this.pledges,

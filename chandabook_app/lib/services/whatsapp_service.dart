@@ -66,14 +66,12 @@ class WhatsAppService {
   }
 
   static String buildVolunteerInviteMessage(GroupModel group) {
+    final inviteLink = 'https://chandabook-utsav.web.app/?join=${group.code}';
     return '🚩 *INVITATION TO JOIN FESTIVAL COMMITTEE* 🚩\n'
         'You have been invited to manage Chanda & Accounts for:\n'
         '🎉 *${group.name}*\n\n'
-        '🔑 *6-Digit Join Code:* *${group.code}*\n\n'
-        '📲 *How to Join:*\n'
-        '1. Open *ChandaBook App*\n'
-        '2. Tap "Join Group via Code"\n'
-        '3. Enter code: *${group.code}*\n\n'
+        '👉 *Tap to Join:* $inviteLink\n\n'
+        '🔑 Or open ChandaBook, tap "Join Group via Code" and enter: *${group.code}*\n\n'
         'Together let us make this Utsav grand and transparent! 🕉️';
   }
 

@@ -16,7 +16,7 @@ class UserProfileModel {
     this.city = '',
     this.photoURL = '',
     this.groupIds = const [],
-    this.isProfileComplete = true,
+    this.isProfileComplete = false,
   });
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) {

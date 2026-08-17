@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.chandabook.app",
+      "sha256_cert_fingerprints": [
+        "92:00:77:81:D6:50:74:7F:6C:6D:D3:DC:A5:F8:BD:B0:75:DD:E0:F2:B9:D4:1F:DC:28:33:B2:5A:D7:A9:CD:0F",
+        "63:D2:78:60:77:17:4D:4F:BB:13:81:67:78:47:6A:28:73:58:B5:32:A2:67:84:BC:23:DC:A6:B7:47:D7:58:7F"
+      ]
+    }
+  }
+]

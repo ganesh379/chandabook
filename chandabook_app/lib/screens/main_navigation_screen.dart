@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../core/theme/app_theme.dart';
@@ -12,6 +11,7 @@ import 'reports_settings_screen.dart';
 import 'add_chanda_dialog.dart';
 import 'group_selector_screen.dart';
 import 'upi_qr_screen.dart';
+import 'notifications_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -117,6 +117,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
         ),
         actions: [
+          // Live Activity / Notifications Button
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, color: AppTheme.textMain),
+            tooltip: 'Live Alerts & Activity',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              );
+            },
+          ),
           // UPI QR Button
           IconButton(
             icon: const Icon(Icons.qr_code_2, color: AppTheme.textMain),

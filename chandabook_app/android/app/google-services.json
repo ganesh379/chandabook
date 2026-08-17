@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "870424515514",
+    "project_id": "chandabook-utsav",
+    "storage_bucket": "chandabook-utsav.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:870424515514:android:dcbe9d8368310727a3c383",
+        "android_client_info": {
+          "package_name": "com.chandabook.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "870424515514-ib3do13744je76r6eepa5jrf6g66i76j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.chandabook.app",
+            "certificate_hash": "6dca33cf69524863ccf907295320871ac1c9fc02"
+          }
+        },
+        {
+          "client_id": "870424515514-kvrb9lh99l9bkot2lpisjvl48tp49ob9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAa5t3FVTvQIPCY0zJZoInNkzV-vZt-8oo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "870424515514-kvrb9lh99l9bkot2lpisjvl48tp49ob9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

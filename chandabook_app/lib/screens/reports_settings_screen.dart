@@ -4,15 +4,19 @@ import 'package:share_plus/share_plus.dart';
 import '../providers/app_state_provider.dart';
 import '../core/theme/app_theme.dart';
 import '../core/utils/date_formatter.dart';
+import '../core/utils/financial_calculator.dart';
 import '../widgets/festive_card.dart';
 import '../services/pdf_service.dart';
+import '../services/whatsapp_service.dart';
 import 'analytics_screen.dart';
 import 'daily_ledger_screen.dart';
 import 'pledges_screen.dart';
 import 'prasadam_schedule_screen.dart';
 import 'transparency_screen.dart';
 import 'receipt_lookup_screen.dart';
-import 'group_selector_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'notifications_screen.dart';
+import 'profile_screen.dart';
 
 class ReportsSettingsScreen extends StatelessWidget {
   const ReportsSettingsScreen({super.key});
@@ -81,6 +85,54 @@ class ReportsSettingsScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+
+          // Account Card
+          if (state.userProfile != null)
+            FestiveCard(
+              padding: const EdgeInsets.all(14),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: AppTheme.primarySaffron.withOpacity(0.15),
+                    backgroundImage: state.userProfile!.photoURL.isNotEmpty
+                        ? NetworkImage(state.userProfile!.photoURL)
+                        : null,
+                    child: state.userProfile!.photoURL.isEmpty
+                        ? const Icon(Icons.person, color: AppTheme.primarySaffron)
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          state.userProfile!.fullName,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (state.userProfile!.email.isNotEmpty)
+                          Text(
+                            state.userProfile!.email,
+                            style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: AppTheme.textMuted),
+                  const SizedBox(width: 4),
+                  TextButton.icon(
+                    onPressed: () => _confirmSignOut(context, state),
+                    icon: const Icon(Icons.logout, size: 16, color: Colors.red),
+                    label: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 16),
 
           // Reports & PDF Section
@@ -174,6 +226,44 @@ class ReportsSettingsScreen extends StatelessWidget {
             subtitle: 'Open community view without login access',
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransparencyScreen())),
           ),
+          const SizedBox(height: 10),
+
+          _buildActionItem(
+            icon: Icons.notifications_active,
+            color: AppTheme.primarySaffron,
+            title: 'Live Activity & Event Notifications',
+            subtitle: 'Real-time record of all donations, expenses & team updates',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+          ),
+          const SizedBox(height: 10),
+
+          _buildActionItem(
+            icon: Icons.share,
+            color: const Color(0xFF25D366),
+            title: 'Daily Committee WhatsApp Broadcast',
+            subtitle: '1-tap financial status report for WhatsApp committee group',
+            onTap: () {
+              if (group != null) {
+                final fin = FinancialCalculator.compute(group);
+                final summary = '📢 *${group.name} — Committee Daily Summary*\n\n'
+                    '💰 *Total Collections:* ${DateFormatter.formatCurrency(fin.totalCollected)}\n'
+                    '🧾 *Total Expenses:* ${DateFormatter.formatCurrency(fin.totalExpenses)}\n'
+                    '💵 *Current In-Hand:* ${DateFormatter.formatCurrency(fin.netBalance)}\n'
+                    '👥 *Active Volunteers:* ${group.members.length}\n\n'
+                    '✨ _Managed securely with ChandaBook_';
+                Share.share(summary);
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+
+          _buildActionItem(
+            icon: Icons.privacy_tip_outlined,
+            color: AppTheme.devotionalEmerald,
+            title: 'Privacy Policy & Google Play Compliance',
+            subtitle: 'View privacy terms, disclosures & data handling',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
+          ),
           const SizedBox(height: 20),
 
           // Cloud Sync & App Version
@@ -182,34 +272,17 @@ class ReportsSettingsScreen extends StatelessWidget {
             color: AppTheme.bgSurface,
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                const Row(
                   children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.cloud_done, color: AppTheme.devotionalEmerald, size: 20),
-                        SizedBox(width: 8),
-                        Text('Firestore Realtime Sync', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      ],
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        textStyle: const TextStyle(fontSize: 11),
-                      ),
-                      onPressed: () {
-                        state.updateGroup(group);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Cloud synchronization triggered! ☁️')),
-                        );
-                      },
-                      child: const Text('Sync Now'),
-                    ),
+                    Icon(Icons.bolt, color: AppTheme.devotionalEmerald, size: 20),
+                    SizedBox(width: 8),
+                    Text('Always-On Realtime Sync', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ],
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Offline-first: All data is saved on your device and auto-synced across committee devices via Cloud Firestore.',
+                  'ChandaBook requires an internet connection. Every donation, expense & team update is written straight to '
+                  'Cloud Firestore and appears on every committee member\'s phone instantly — nothing is stored only on this device.',
                   style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
                 ),
               ],
@@ -224,6 +297,26 @@ class ReportsSettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  void _confirmSignOut(BuildContext context, AppStateProvider state) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign Out?'),
+        content: const Text('You will need to sign in with Google again to access your festival groups.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              state.signOut();
+            },
+            child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );

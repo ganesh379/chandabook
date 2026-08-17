@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../providers/app_state_provider.dart';
 import '../core/theme/app_theme.dart';
 import '../core/constants/app_constants.dart';

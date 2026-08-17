@@ -1,0 +1,21 @@
+# Signing secrets - never commit these. The upload keystore is the app's
+# release signing identity; key.properties holds its passwords in plain text.
+android/key.properties
+android/app/upload-keystore.jks
+android/app/*.jks
+android/app/*.keystore
+
+# Flutter/Dart build output & tooling
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+
+# Android build output & local machine config
+android/.gradle/
+android/local.properties
+android/app/.cxx/
+
+# IDE
+.idea/
+*.iml

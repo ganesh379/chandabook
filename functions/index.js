@@ -116,17 +116,20 @@ exports.notifyCommitteeActivity = onDocumentUpdated(
 
     const addedCollections = newEntries(before.collections, after.collections);
     const addedExpenses = newEntries(before.expenses, after.expenses);
+    const addedPledges = newEntries(before.pledges, after.pledges);
+    const beforeMembers = Array.isArray(before.members) ? before.members : [];
+    const afterMembers = Array.isArray(after.members) ? after.members : [];
+    const addedMembers = afterMembers.filter(m => m && !beforeMembers.includes(m));
 
-    if (addedCollections.length === 0 && addedExpenses.length === 0) {
-      return; // Some other field changed (settings, members, logo) — stay quiet.
+    if (addedCollections.length === 0 && addedExpenses.length === 0 && addedPledges.length === 0 && addedMembers.length === 0) {
+      return; // No relevant activity
     }
 
     const groupName = after.name || 'Committee';
     const currency = after.currency;
     const allStale = [];
 
-    // A bulk import or a restored backup can add many rows in one write;
-    // summarise instead of firing a notification per row.
+    // 1. Collections Notification
     if (addedCollections.length > 0) {
       const total = addedCollections.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
       const actor = addedCollections.length === 1 ? addedCollections[0].collectedBy : null;
@@ -146,13 +149,14 @@ exports.notifyCommitteeActivity = onDocumentUpdated(
       logger.info(`Collection notification: ${successCount}/${tokens.length} delivered.`);
     }
 
+    // 2. Expenses Notification
     if (addedExpenses.length > 0) {
       const total = addedExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-      const actor = addedExpenses.length === 1 ? addedExpenses[0].spentBy : null;
+      const actor = addedExpenses.length === 1 ? (addedExpenses[0].spentBy || addedExpenses[0].paidBy) : null;
 
       const body = addedExpenses.length === 1
         ? `${addedExpenses[0].title || 'Expense'} — ${rupees(addedExpenses[0].amount, currency)}` +
-          (addedExpenses[0].spentBy ? ` (spent by ${addedExpenses[0].spentBy})` : '')
+          (actor ? ` (paid by ${actor})` : '')
         : `${addedExpenses.length} new expenses totalling ${rupees(total, currency)}`;
 
       const tokens = await tokensForGroup(groupId, actor);
@@ -163,6 +167,32 @@ exports.notifyCommitteeActivity = onDocumentUpdated(
       });
       allStale.push(...staleTokens);
       logger.info(`Expense notification: ${successCount}/${tokens.length} delivered.`);
+    }
+
+    // 3. New Member / Volunteer Joined Notification
+    if (addedMembers.length > 0) {
+      const memberNames = addedMembers.join(', ');
+      const tokens = await tokensForGroup(groupId, null);
+      const { successCount, staleTokens } = await send(tokens, {
+        title: `🙌 New Volunteer Joined — ${groupName}`,
+        body: `${memberNames} joined the festival committee team!`,
+        tag: `member-${groupId}`
+      });
+      allStale.push(...staleTokens);
+      logger.info(`Member notification: ${successCount}/${tokens.length} delivered.`);
+    }
+
+    // 4. New Pledge / Promise Recorded Notification
+    if (addedPledges.length > 0) {
+      const pledge = addedPledges[0];
+      const tokens = await tokensForGroup(groupId, null);
+      const { successCount, staleTokens } = await send(tokens, {
+        title: `🙏 New Pledge Recorded — ${groupName}`,
+        body: `${pledge.donorName || 'A devotee'} pledged ${rupees(pledge.pledgeAmount, currency)}`,
+        tag: `pledge-${groupId}`
+      });
+      allStale.push(...staleTokens);
+      logger.info(`Pledge notification: ${successCount}/${tokens.length} delivered.`);
     }
 
     await pruneStaleTokens([...new Set(allStale)]);

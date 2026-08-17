@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <!-- Queries for WhatsApp, UPI payment apps, and browser links -->
     <queries>
@@ -47,12 +48,21 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Deep linking for Utsav join codes and receipts -->
+            <!-- Deep linking for Utsav join codes and receipts (custom scheme) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="chandabook" android:host="join" />
+            </intent-filter>
+            <!-- Deep linking for shared https://chandabook-utsav.web.app/?join=CODE
+                 invite links - requires public/.well-known/assetlinks.json to be
+                 deployed on that domain for autoVerify to succeed. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="chandabook-utsav.web.app" />
             </intent-filter>
         </activity>
         <meta-data
