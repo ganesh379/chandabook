@@ -57,21 +57,48 @@ class AppStateProvider extends ChangeNotifier {
   /// Returns true if the currently signed-in user has the 'admin' role in
   /// the active group. The group creator is always admin; joiners are volunteers.
   bool get isCurrentUserAdmin {
-    final uid = _firebaseUser?.uid;
+    final user = _firebaseUser;
     final group = activeGroup;
-    if (uid == null || group == null) return false;
-    final member = group.memberAccounts.where((m) => m.uid == uid).firstOrNull;
-    if (member != null) {
-      return member.role == 'admin';
+    if (user == null || group == null) return false;
+
+    final uid = user.uid;
+    final profile = _userProfile;
+    final userName = (profile?.fullName ?? user.displayName ?? '').trim().toLowerCase();
+    final userEmail = (profile?.email ?? user.email ?? '').trim().toLowerCase();
+
+    // 1. Direct UID match in memberAccounts
+    final memberByUid = group.memberAccounts.where((m) => m.uid.isNotEmpty && m.uid == uid).firstOrNull;
+    if (memberByUid != null) {
+      return memberByUid.role == 'admin' || memberByUid.designation.toLowerCase() == 'admin';
     }
-    // Fallback: If createdBy matches current user UID
+
+    // 2. Name or Email match in memberAccounts
+    final memberByNameOrEmail = group.memberAccounts.where((m) {
+      final mName = m.name.trim().toLowerCase();
+      final mEmail = m.email.trim().toLowerCase();
+      return (userName.isNotEmpty && mName == userName) || (userEmail.isNotEmpty && mEmail == userEmail);
+    }).firstOrNull;
+    if (memberByNameOrEmail != null) {
+      return memberByNameOrEmail.role == 'admin' || memberByNameOrEmail.designation.toLowerCase() == 'admin';
+    }
+
+    // 3. Fallback: If createdBy matches current user UID
     if (group.createdBy != null && group.createdBy == uid) {
       return true;
     }
-    // Fallback: If legacy group has no memberAccounts configured yet, allow admin access
+
+    // 4. Fallback: If current user matches first member in group.members
+    if (group.members.isNotEmpty && userName.isNotEmpty) {
+      if (group.members.first.trim().toLowerCase() == userName) {
+        return true;
+      }
+    }
+
+    // 5. Fallback: If legacy group has no memberAccounts configured yet, allow admin access
     if (group.memberAccounts.isEmpty) {
       return true;
     }
+
     return false;
   }
 

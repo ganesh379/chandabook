@@ -128,13 +128,57 @@ export default function App() {
   const isAuthenticated = !!currentUser;
   const activeGroup = isAuthenticated ? (allGroups[activeGroupId] || (groupsList.length > 0 ? groupsList[0] : null)) : null;
 
-  // Admin check: current user has role='admin' in the active group's memberAccounts list
+  // Admin check: current user has role='admin' in the active group's memberAccounts list, or matching name/email/creator
   const isAdmin = (() => {
-    if (!currentUser?.uid || !activeGroup) return false;
-    const member = (activeGroup.memberAccounts || []).find(m => m.uid === currentUser.uid);
-    if (member) return member.role === 'admin';
-    if (activeGroup.createdBy && activeGroup.createdBy === currentUser.uid) return true;
-    if (!activeGroup.memberAccounts || activeGroup.memberAccounts.length === 0) return true;
+    if (!currentUser || !activeGroup) return false;
+
+    const userUid = currentUser.uid;
+    const userName = (currentUser.displayName || '').trim().toLowerCase();
+    const userEmail = (currentUser.email || '').trim().toLowerCase();
+
+    // 1. Direct UID match in memberAccounts
+    const memberByUid = (activeGroup.memberAccounts || []).find(m => m.uid && m.uid === userUid);
+    if (memberByUid) {
+      return memberByUid.role === 'admin' || (memberByUid.designation || '').toLowerCase() === 'admin';
+    }
+
+    // 2. Name or Email match in memberAccounts
+    const memberByNameOrEmail = (activeGroup.memberAccounts || []).find(m => 
+      (userName && m.name && m.name.trim().toLowerCase() === userName) ||
+      (userEmail && m.email && m.email.trim().toLowerCase() === userEmail)
+    );
+    if (memberByNameOrEmail) {
+      return memberByNameOrEmail.role === 'admin' || (memberByNameOrEmail.designation || '').toLowerCase() === 'admin';
+    }
+
+    // 3. Name match in membersData
+    const memberDataObj = (activeGroup.membersData || []).find(m => {
+      const n = typeof m === 'object' ? m.name : m;
+      return userName && n && n.trim().toLowerCase() === userName;
+    });
+    if (memberDataObj && typeof memberDataObj === 'object') {
+      const roleStr = (memberDataObj.role || '').toLowerCase();
+      if (roleStr === 'admin') return true;
+    }
+
+    // 4. Group creator UID match
+    if (activeGroup.createdBy && activeGroup.createdBy === userUid) {
+      return true;
+    }
+
+    // 5. First member in group roster match (creator fallback)
+    if (activeGroup.members && activeGroup.members.length > 0) {
+      const firstMember = typeof activeGroup.members[0] === 'object' ? activeGroup.members[0].name : activeGroup.members[0];
+      if (userName && firstMember && firstMember.trim().toLowerCase() === userName) {
+        return true;
+      }
+    }
+
+    // 6. If no memberAccounts configured yet, default to true for the active user
+    if (!activeGroup.memberAccounts || activeGroup.memberAccounts.length === 0) {
+      return true;
+    }
+
     return false;
   })();
 
