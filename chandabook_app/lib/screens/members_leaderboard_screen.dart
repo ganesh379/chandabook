@@ -5,25 +5,182 @@ import '../providers/app_state_provider.dart';
 import '../core/theme/app_theme.dart';
 import '../core/utils/date_formatter.dart';
 import '../widgets/festive_card.dart';
+import '../services/whatsapp_service.dart';
 
 class MembersLeaderboardScreen extends StatelessWidget {
   const MembersLeaderboardScreen({super.key});
+
+  static const List<Map<String, String>> designations = [
+    {'id': 'Admin', 'label': '🛡️ Admin'},
+    {'id': 'President', 'label': '👑 President'},
+    {'id': 'Treasurer', 'label': '💼 Treasurer'},
+    {'id': 'Secretary', 'label': '📜 General Secretary'},
+    {'id': 'Vice President', 'label': '🌟 Vice President'},
+    {'id': 'Youth Leader', 'label': '🚩 Youth Leader'},
+    {'id': 'Pooja In-Charge', 'label': '🪔 Pooja In-Charge'},
+    {'id': 'Pandal In-Charge', 'label': '🎪 Pandal & Decor In-Charge'},
+    {'id': 'Prasadam In-Charge', 'label': '🍲 Prasadam In-Charge'},
+    {'id': 'Volunteer', 'label': '📢 Volunteer'},
+  ];
+
+  void _openEditRoleModal(BuildContext context, String memberName, String currentDesignation, bool isCurrentAdmin) {
+    String selectedDesignation = currentDesignation;
+    bool makeAdmin = isCurrentAdmin || currentDesignation.toLowerCase() == 'admin';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) {
+          return Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 20,
+              left: 20,
+              right: 20,
+              top: 16,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppTheme.borderSubtle,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Icon(Icons.badge_outlined, color: AppTheme.primarySaffron),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Assign Role: $memberName',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Select Official Committee Designation / Tag:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textMuted),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: designations.map((d) {
+                      final isSelected = selectedDesignation.toLowerCase() == d['id']!.toLowerCase();
+                      return ChoiceChip(
+                        label: Text(d['label']!),
+                        selected: isSelected,
+                        selectedColor: AppTheme.primarySaffron.withValues(alpha: 0.2),
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? AppTheme.primarySaffronDark : AppTheme.textMain,
+                        ),
+                        side: BorderSide(
+                          color: isSelected ? AppTheme.primarySaffron : AppTheme.borderSubtle,
+                        ),
+                        onSelected: (selected) {
+                          if (selected) {
+                            setModalState(() {
+                              selectedDesignation = d['id']!;
+                              if (d['id'] == 'Admin') {
+                                makeAdmin = true;
+                              }
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Grant Admin Privileges', style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: const Text(
+                      'Allows editing group settings, deleting records, and managing roles',
+                      style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                    ),
+                    value: makeAdmin || selectedDesignation.toLowerCase() == 'admin',
+                    onChanged: (val) {
+                      setModalState(() {
+                        makeAdmin = val;
+                      });
+                    },
+                    activeColor: AppTheme.primarySaffron,
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        context.read<AppStateProvider>().updateMemberRole(
+                          memberName: memberName,
+                          designation: selectedDesignation,
+                          isAdmin: makeAdmin,
+                        );
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Updated $memberName as $selectedDesignation${makeAdmin ? " (Admin)" : ""}'),
+                            backgroundColor: AppTheme.devotionalEmerald,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.check),
+                      label: const Text('Save Designation & Role', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppStateProvider>();
     final group = state.activeGroup;
-    final financials = state.financials;
-    final stats = financials.memberStats;
+    final isAdmin = state.isCurrentUserAdmin;
 
     if (group == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final financials = state.financials;
+    final stats = financials.memberStats;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Volunteer Leaderboard'),
+        title: const Text('Volunteers & Team'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person_add_alt_1_outlined),
+            tooltip: 'Invite Volunteer on WhatsApp',
+            onPressed: () {
+              final msg = WhatsAppService.buildVolunteerInviteMessage(group);
+              WhatsAppService.launchWhatsApp('', msg);
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.share_outlined),
             tooltip: 'Share Leaderboard',
@@ -49,7 +206,7 @@ class MembersLeaderboardScreen extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         children: [
           // Header Podium / Top 3 Card
-          if (stats.isNotEmpty) ...[
+          if (stats.isNotEmpty && stats.first.total > 0) ...[
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -59,7 +216,7 @@ class MembersLeaderboardScreen extends StatelessWidget {
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppTheme.marigold.withOpacity(0.5)),
+                border: Border.all(color: AppTheme.marigold.withValues(alpha: 0.5)),
               ),
               child: Column(
                 children: [
@@ -102,18 +259,33 @@ class MembersLeaderboardScreen extends StatelessWidget {
             const SizedBox(height: 16),
           ],
 
-          // Rankings List
-          const Text(
-            'All Committee Volunteers',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+          // Rankings List Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Committee Volunteers & Roles',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+              ),
+              Text(
+                '${group.members.length} Members',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textMuted),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
 
-          ...stats.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final item = entry.value;
-            final isTop3 = idx < 3;
-            final medalEmoji = idx == 0 ? '🥇' : (idx == 1 ? '🥈' : (idx == 2 ? '🥉' : ''));
+          ...group.members.map((memberName) {
+            final stat = stats.where((s) => s.name.toLowerCase() == memberName.toLowerCase()).firstOrNull;
+            final totalCollected = stat?.total ?? 0.0;
+            final countLogged = stat?.count ?? 0;
+
+            // Find member account info for designation and role
+            final account = group.memberAccounts.where((m) => m.name.toLowerCase() == memberName.toLowerCase()).firstOrNull;
+            final designation = account?.designation.isNotEmpty == true 
+                ? account!.designation 
+                : (memberName.toLowerCase().contains('president') ? 'President' : (memberName.toLowerCase().contains('treasurer') ? 'Treasurer' : 'Volunteer'));
+            final isMemberAdmin = account?.role == 'admin' || designation.toLowerCase() == 'admin';
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -122,21 +294,19 @@ class MembersLeaderboardScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: isTop3 ? AppTheme.marigold.withOpacity(0.2) : AppTheme.bgSurface,
+                        color: isMemberAdmin ? AppTheme.primarySaffron.withValues(alpha: 0.15) : AppTheme.bgSurface,
                         shape: BoxShape.circle,
-                        border: Border.all(color: isTop3 ? AppTheme.marigold : AppTheme.borderSubtle),
+                        border: Border.all(
+                          color: isMemberAdmin ? AppTheme.primarySaffron : AppTheme.borderSubtle,
+                        ),
                       ),
                       child: Center(
                         child: Text(
-                          isTop3 ? medalEmoji : '#${idx + 1}',
-                          style: TextStyle(
-                            fontSize: isTop3 ? 16 : 12,
-                            fontWeight: FontWeight.bold,
-                            color: isTop3 ? AppTheme.primarySaffronDark : AppTheme.textMuted,
-                          ),
+                          isMemberAdmin ? '🛡️' : '📢',
+                          style: const TextStyle(fontSize: 18),
                         ),
                       ),
                     ),
@@ -145,35 +315,79 @@ class MembersLeaderboardScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            item.name,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  memberName,
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isMemberAdmin 
+                                      ? const Color(0xFFEEF2FF) 
+                                      : AppTheme.primarySaffron.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: isMemberAdmin ? const Color(0xFFC7D2FE) : AppTheme.primarySaffron.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  designation,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isMemberAdmin ? const Color(0xFF4338CA) : AppTheme.primarySaffronDark,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                          const SizedBox(height: 2),
                           Text(
-                            '${item.count} Donors logged',
+                            countLogged > 0
+                                ? '$countLogged Donors • ${DateFormatter.formatCurrency(totalCollected)}'
+                                : 'No donations logged yet',
                             style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
                           ),
                         ],
                       ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          DateFormatter.formatCurrency(item.total),
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.devotionalEmerald,
-                          ),
-                        ),
-                        if (financials.totalCollected > 0)
-                          Text(
-                            '${((item.total / financials.totalCollected) * 100).round()}% of total',
-                            style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
-                          ),
-                      ],
-                    ),
+                    if (isAdmin) ...[
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 18, color: AppTheme.primarySaffron),
+                        tooltip: 'Assign Role / Designation',
+                        onPressed: () => _openEditRoleModal(context, memberName, designation, isMemberAdmin),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFE57373)),
+                        tooltip: 'Remove Volunteer',
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Remove Volunteer?'),
+                              content: Text('Remove "$memberName" from the committee team?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                  child: const Text('Remove'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            state.removeMember(memberName);
+                          }
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),

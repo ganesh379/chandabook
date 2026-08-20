@@ -72,6 +72,9 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
     e.preventDefault();
     if (!memberToEditRole) return;
 
+    const isAdminRole = selectedRoleInput.toLowerCase() === 'admin';
+    const rolePermission = isAdminRole ? 'admin' : 'volunteer';
+
     const updatedMembersData = (group.membersData || []).map(m => {
       const name = typeof m === 'object' ? m.name : m;
       if (name === memberToEditRole) {
@@ -88,9 +91,31 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
       updatedMembersData.push({ name: memberToEditRole, role: selectedRoleInput });
     }
 
+    // Also update / backfill memberAccounts!
+    const existingAccounts = [...(group.memberAccounts || [])];
+    const accIdx = existingAccounts.findIndex(m => (m.name || '').toLowerCase() === memberToEditRole.toLowerCase());
+    if (accIdx >= 0) {
+      existingAccounts[accIdx] = {
+        ...existingAccounts[accIdx],
+        role: rolePermission,
+        designation: selectedRoleInput
+      };
+    } else {
+      existingAccounts.push({
+        uid: '',
+        name: memberToEditRole,
+        role: rolePermission,
+        designation: selectedRoleInput,
+        email: '',
+        photoURL: '',
+        joinedAt: new Date().toISOString()
+      });
+    }
+
     onUpdateGroup({
       ...group,
-      membersData: updatedMembersData
+      membersData: updatedMembersData,
+      memberAccounts: existingAccounts
     });
 
     setShowRoleModal(false);
@@ -102,11 +127,13 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
 
     const updatedMembers = (group.members || []).filter(m => (typeof m === 'object' ? m.name : m) !== memberName);
     const updatedMembersData = (group.membersData || []).filter(m => (typeof m === 'object' ? m.name : m) !== memberName);
+    const updatedMemberAccounts = (group.memberAccounts || []).filter(m => (m.name || '') !== memberName);
 
     onUpdateGroup({
       ...group,
       members: updatedMembers,
-      membersData: updatedMembersData
+      membersData: updatedMembersData,
+      memberAccounts: updatedMemberAccounts
     });
   };
 
@@ -148,7 +175,8 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
           
           // Get member role
           const memberObj = (group.membersData || []).find(m => (typeof m === 'object' ? m.name : m) === member.name);
-          const memberRole = (typeof memberObj === 'object' ? memberObj.role : '') || (member.name.includes('President') ? 'President' : member.name.includes('Treasurer') ? 'Treasurer' : 'Volunteer');
+          const memberAcc = (group.memberAccounts || []).find(m => (m.name || '').toLowerCase() === member.name.toLowerCase());
+          const memberRole = (typeof memberObj === 'object' ? memberObj.role : '') || memberAcc?.designation || (memberAcc?.role === 'admin' ? 'Admin' : (member.name.includes('President') ? 'President' : member.name.includes('Treasurer') ? 'Treasurer' : 'Volunteer'));
           const roleObj = COMMITTEE_ROLES.find(r => r.id === memberRole) || COMMITTEE_ROLES.find(r => r.id === 'Volunteer');
 
           return (

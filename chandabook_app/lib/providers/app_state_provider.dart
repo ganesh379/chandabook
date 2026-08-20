@@ -163,11 +163,32 @@ class AppStateProvider extends ChangeNotifier {
 
     for (final id in groupIds) {
       if (_groupSubs.containsKey(id)) continue;
-      _groupSubs[id] = FirestoreService.watchGroup(id).listen((group) {
+      _groupSubs[id] = FirestoreService.watchGroup(id).listen((group) async {
         if (group == null) {
           _allGroups.remove(id);
         } else {
-          _allGroups[id] = group;
+          // Auto-backfill memberAccounts if missing on Firestore
+          if (group.memberAccounts.isEmpty && group.members.isNotEmpty) {
+            final accounts = <GroupMemberModel>[];
+            for (int i = 0; i < group.members.length; i++) {
+              final mName = group.members[i];
+              final isMe = (_userProfile != null && mName == _userProfile!.fullName);
+              final isFirst = (i == 0);
+              accounts.add(GroupMemberModel(
+                uid: isMe ? (_firebaseUser?.uid ?? '') : '',
+                name: mName,
+                email: isMe ? (_userProfile?.email ?? '') : '',
+                photoURL: isMe ? (_userProfile?.photoURL ?? '') : '',
+                role: isFirst ? 'admin' : 'volunteer',
+                designation: isFirst ? 'Admin' : 'Volunteer',
+              ));
+            }
+            final fixedGroup = group.copyWith(memberAccounts: accounts);
+            _allGroups[id] = fixedGroup;
+            await FirestoreService.setGroup(fixedGroup);
+          } else {
+            _allGroups[id] = group;
+          }
         }
         notifyListeners();
       });
@@ -503,6 +524,61 @@ class AppStateProvider extends ChangeNotifier {
     await FirestoreService.setGroup(updatedGroup.copyWith(
       updatedAt: DateTime.now().toIso8601String(),
     ));
+  }
+
+  Future<void> updateMemberRole({
+    required String memberName,
+    required String designation,
+    required bool isAdmin,
+  }) async {
+    final current = activeGroup;
+    if (current == null) return;
+
+    final roleStr = (isAdmin || designation.toLowerCase() == 'admin') ? 'admin' : 'volunteer';
+
+    final existingAccounts = List<GroupMemberModel>.from(current.memberAccounts);
+    final idx = existingAccounts.indexWhere((m) => m.name.toLowerCase() == memberName.toLowerCase());
+
+    if (idx >= 0) {
+      existingAccounts[idx] = existingAccounts[idx].copyWith(
+        role: roleStr,
+        designation: designation,
+      );
+    } else {
+      existingAccounts.add(GroupMemberModel(
+        uid: '',
+        name: memberName,
+        role: roleStr,
+        designation: designation,
+      ));
+    }
+
+    final updatedGroup = current.copyWith(
+      memberAccounts: existingAccounts,
+      updatedAt: DateTime.now().toIso8601String(),
+    );
+
+    await FirestoreService.setGroup(updatedGroup);
+    _allGroups[updatedGroup.id] = updatedGroup;
+    notifyListeners();
+  }
+
+  Future<void> removeMember(String memberName) async {
+    final current = activeGroup;
+    if (current == null) return;
+
+    final updatedMembers = current.members.where((m) => m != memberName).toList();
+    final updatedAccounts = current.memberAccounts.where((m) => m.name != memberName).toList();
+
+    final updatedGroup = current.copyWith(
+      members: updatedMembers,
+      memberAccounts: updatedAccounts,
+      updatedAt: DateTime.now().toIso8601String(),
+    );
+
+    await FirestoreService.setGroup(updatedGroup);
+    _allGroups[updatedGroup.id] = updatedGroup;
+    notifyListeners();
   }
 
   String generateNextReceiptNo() {
