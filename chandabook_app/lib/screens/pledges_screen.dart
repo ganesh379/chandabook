@@ -64,7 +64,6 @@ class _PledgesScreenState extends State<PledgesScreen> with SingleTickerProvider
       appBar: AppBar(
         title: const Text('Pledges & Promises'),
         actions: [
-          if (isAdmin)
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
             tooltip: 'Add Pledge',
@@ -116,14 +115,12 @@ class _PledgesScreenState extends State<PledgesScreen> with SingleTickerProvider
           ),
         ],
       ),
-      floatingActionButton: isAdmin
-          ? FloatingActionButton.extended(
-              onPressed: () => _openAddPledgeModal(context),
-              backgroundColor: AppTheme.primarySaffron,
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('New Pledge', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openAddPledgeModal(context),
+        backgroundColor: AppTheme.primarySaffron,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('New Pledge', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
     );
   }
 

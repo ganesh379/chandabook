@@ -43,7 +43,6 @@ class PrasadamScheduleScreen extends StatelessWidget {
               WhatsAppService.launchWhatsApp('', msg);
             },
           ),
-          if (isAdmin)
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
             tooltip: 'Add Sponsor',
@@ -68,7 +67,6 @@ class PrasadamScheduleScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
                   ),
                   const SizedBox(height: 16),
-                  if (isAdmin)
                   ElevatedButton.icon(
                     onPressed: () => _openAddPrasadamModal(context),
                     icon: const Icon(Icons.add),
@@ -174,14 +172,12 @@ class PrasadamScheduleScreen extends StatelessWidget {
                 );
               },
             ),
-      floatingActionButton: isAdmin
-          ? FloatingActionButton.extended(
-              onPressed: () => _openAddPrasadamModal(context),
-              backgroundColor: AppTheme.primarySaffron,
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('Book Sponsor', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openAddPrasadamModal(context),
+        backgroundColor: AppTheme.primarySaffron,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Book Sponsor', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
     );
   }
 }

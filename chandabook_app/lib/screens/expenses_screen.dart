@@ -75,7 +75,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         ),
                       ],
                     ),
-                    if (isAdmin)
                     ElevatedButton.icon(
                       onPressed: () => _openAddExpenseModal(context),
                       style: ElevatedButton.styleFrom(
@@ -167,7 +166,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textMuted),
                         ),
                         const SizedBox(height: 12),
-                        if (isAdmin)
                         OutlinedButton.icon(
                           onPressed: () => _openAddExpenseModal(context),
                           icon: const Icon(Icons.add, size: 16),
