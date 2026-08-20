@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Utensils, Plus, Share2, Calendar, Phone, Trash2 } from 'lucide-react';
 
-export default function PrasadamSchedule({ group, onUpdateGroup }) {
+export default function PrasadamSchedule({ group, onUpdateGroup, isAdmin }) {
   const [sponsorName, setSponsorName] = useState('');
   const [phone, setPhone] = useState('');
   const [item, setItem] = useState('');
@@ -154,12 +154,15 @@ export default function PrasadamSchedule({ group, onUpdateGroup }) {
                   <Share2 size={14} /> Send WhatsApp Confirmation
                 </button>
 
-                <button 
-                  onClick={() => handleDelete(s.id)}
-                  className="btn btn-danger btn-icon"
-                >
-                  <Trash2 size={15} />
-                </button>
+                {isAdmin && (
+                  <button 
+                    onClick={() => handleDelete(s.id)}
+                    className="btn btn-danger btn-icon"
+                    title="Delete Sponsor"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                )}
               </div>
             </div>
           ))

@@ -128,6 +128,13 @@ export default function App() {
   const isAuthenticated = !!currentUser;
   const activeGroup = isAuthenticated ? (allGroups[activeGroupId] || (groupsList.length > 0 ? groupsList[0] : null)) : null;
 
+  // Admin check: current user has role='admin' in the active group's memberAccounts list
+  const isAdmin = (() => {
+    if (!currentUser?.uid || !activeGroup) return false;
+    const member = (activeGroup.memberAccounts || []).find(m => m.uid === currentUser.uid);
+    return member?.role === 'admin';
+  })();
+
   // URL Query Param Invite Link Detector (?inviteMember=CODE or ?join=CODE)
   // Stores the invite code as pending; it will be processed after login.
   useEffect(() => {
@@ -751,6 +758,7 @@ export default function App() {
                 group={activeGroup}
                 onUpdateGroup={handleUpdateActiveGroup}
                 onViewReceipt={setSelectedReceipt}
+                isAdmin={isAdmin}
               />
             )}
 
@@ -760,6 +768,7 @@ export default function App() {
                 onOpenAddChanda={() => setShowAddChanda(true)}
                 onDeleteCollection={handleDeleteCollection}
                 onViewReceipt={setSelectedReceipt}
+                isAdmin={isAdmin}
               />
             )}
 
@@ -770,6 +779,7 @@ export default function App() {
                 onDeleteExpense={handleDeleteExpense}
                 autoOpenAddModal={autoOpenExpenseModal}
                 onResetAutoOpen={() => setAutoOpenExpenseModal(false)}
+                isAdmin={isAdmin}
               />
             )}
 
@@ -778,6 +788,7 @@ export default function App() {
                 group={activeGroup}
                 onUpdateGroup={handleUpdateActiveGroup}
                 onAddCollection={handleAddCollection}
+                isAdmin={isAdmin}
               />
             )}
 
@@ -785,6 +796,7 @@ export default function App() {
               <PrasadamSchedule
                 group={activeGroup}
                 onUpdateGroup={handleUpdateActiveGroup}
+                isAdmin={isAdmin}
               />
             )}
 
@@ -807,6 +819,7 @@ export default function App() {
                 onReplaceAllGroups={setAllGroups}
                 onRefreshCloudSync={() => setFirebaseConnected(!!initFirebase())}
                 currentUser={currentUser}
+                isAdmin={isAdmin}
               />
             )}
           </>

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { EXPENSE_CATEGORIES } from '../utils/storage';
 
-export default function ExpensesList({ group, onAddExpense, onDeleteExpense, autoOpenAddModal, onResetAutoOpen }) {
+export default function ExpensesList({ group, onAddExpense, onDeleteExpense, autoOpenAddModal, onResetAutoOpen, isAdmin }) {
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -198,13 +198,15 @@ export default function ExpensesList({ group, onAddExpense, onDeleteExpense, aut
                     -{group?.currency || '₹'}{Number(exp.amount).toLocaleString('en-IN')}
                   </span>
 
-                  <button 
-                    onClick={() => onDeleteExpense(exp.id)}
-                    className="btn btn-danger btn-icon no-print"
-                    title="Delete Expense Record"
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                  {isAdmin && (
+                    <button 
+                      onClick={() => onDeleteExpense(exp.id)}
+                      className="btn btn-danger btn-icon no-print"
+                      title="Delete Expense Record"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
                 </div>
               </div>
             );

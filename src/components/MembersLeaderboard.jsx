@@ -28,7 +28,7 @@ export const COMMITTEE_ROLES = [
   { id: 'Volunteer', label: '📢 Committee Volunteer', badgeClass: 'badge-secondary' }
 ];
 
-export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt }) {
+export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt, isAdmin }) {
   const [selectedMember, setSelectedMember] = useState(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
@@ -185,23 +185,25 @@ export default function MembersLeaderboard({ group, onUpdateGroup, onViewReceipt
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <button 
-                    onClick={() => handleOpenEditRole(member.name)}
-                    style={{ background: 'none', border: 'none', color: 'var(--primary-500)', cursor: 'pointer', padding: '4px' }}
-                    title="Assign Official Position / Role"
-                  >
-                    <Edit2 size={15} />
-                  </button>
+                {isAdmin && (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button 
+                      onClick={() => handleOpenEditRole(member.name)}
+                      style={{ background: 'none', border: 'none', color: 'var(--primary-500)', cursor: 'pointer', padding: '4px' }}
+                      title="Assign Official Position / Role"
+                    >
+                      <Edit2 size={15} />
+                    </button>
 
-                  <button 
-                    onClick={() => handleRemoveMember(member.name)}
-                    style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '4px' }}
-                    title="Remove Volunteer"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
+                    <button 
+                      onClick={() => handleRemoveMember(member.name)}
+                      style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '4px' }}
+                      title="Remove Volunteer"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <h3 style={{ fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 800 }}>

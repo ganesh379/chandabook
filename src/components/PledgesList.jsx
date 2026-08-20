@@ -29,7 +29,7 @@ const buildPledgeReminderText = (group, pledge) => {
   );
 };
 
-export default function PledgesList({ group, onUpdateGroup, onAddCollection }) {
+export default function PledgesList({ group, onUpdateGroup, onAddCollection, isAdmin }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(null);
   const [showReminderQueue, setShowReminderQueue] = useState(false);
@@ -232,9 +232,11 @@ export default function PledgesList({ group, onUpdateGroup, onAddCollection }) {
                     <button onClick={() => handleSendReminder(p)} style={{ background: 'none', border: 'none', color: '#25d366', cursor: 'pointer' }} title="Send WhatsApp Reminder">
                       <Share2 size={16} />
                     </button>
+                    {isAdmin && (
                     <button onClick={() => handleDeletePledge(p.id)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }} title="Delete Pledge">
                       <Trash2 size={15} />
                     </button>
+                    )}
                   </div>
                 </div>
               );

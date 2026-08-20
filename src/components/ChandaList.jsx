@@ -12,7 +12,7 @@ import {
   Printer
 } from 'lucide-react';
 
-export default function ChandaList({ group, onOpenAddChanda, onDeleteCollection, onViewReceipt }) {
+export default function ChandaList({ group, onOpenAddChanda, onDeleteCollection, onViewReceipt, isAdmin }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('ALL');
   const [collectorFilter, setCollectorFilter] = useState('ALL');
@@ -173,14 +173,16 @@ export default function ChandaList({ group, onOpenAddChanda, onDeleteCollection,
                           <Share2 size={13} style={{ color: '#25d366' }} /> Receipt
                         </button>
 
-                        <button 
-                          onClick={() => onDeleteCollection(c.id)}
-                          className="btn btn-danger btn-icon"
-                          style={{ padding: '6px' }}
-                          title="Delete Collection Entry"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {isAdmin && (
+                          <button 
+                            onClick={() => onDeleteCollection(c.id)}
+                            className="btn btn-danger btn-icon"
+                            style={{ padding: '6px' }}
+                            title="Delete Collection Entry"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

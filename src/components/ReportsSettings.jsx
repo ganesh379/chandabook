@@ -36,7 +36,8 @@ export default function ReportsSettings({
   allGroupsMap,
   onReplaceAllGroups,
   onRefreshCloudSync,
-  currentUser
+  currentUser,
+  isAdmin
 }) {
   const [name, setName] = useState(group?.name || '');
   const [address, setAddress] = useState(group?.address || '');
@@ -292,18 +293,38 @@ export default function ReportsSettings({
                   <Camera size={20} />
                 </div>
               )}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleLogoUpload}
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
-              />
+              {isAdmin && (
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                />
+              )}
             </label>
             <div>
               <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Committee Logo</p>
-              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tap to upload. Shown on official PDF statements.</p>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                {isAdmin ? 'Tap to upload. Shown on official PDF statements.' : 'Shown on official PDF statements.'}
+              </p>
             </div>
           </div>
+
+          {!isAdmin && (
+            <div style={{
+              padding: '10px 14px',
+              background: 'rgba(234, 179, 8, 0.1)',
+              border: '1px solid rgba(234, 179, 8, 0.3)',
+              borderRadius: '8px',
+              color: '#eab308',
+              fontSize: '0.825rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <Lock size={15} /> Only Group Admins can edit committee settings and details.
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label">Committee Name</label>
@@ -312,6 +333,7 @@ export default function ReportsSettings({
               className="form-input"
               value={name}
               onChange={e => setName(e.target.value)}
+              disabled={!isAdmin}
               required
             />
           </div>
@@ -324,6 +346,7 @@ export default function ReportsSettings({
               placeholder="e.g. Lotus Apartments, MG Road, Hyderabad - 500081"
               value={address}
               onChange={e => setAddress(e.target.value)}
+              disabled={!isAdmin}
             />
           </div>
 
@@ -334,6 +357,7 @@ export default function ReportsSettings({
                 className="form-input"
                 value={festivalType}
                 onChange={e => setFestivalType(e.target.value)}
+                disabled={!isAdmin}
               >
                 {FESTIVAL_TYPES.map(f => (
                   <option key={f.id} value={f.id}>{f.icon} {f.name}</option>
@@ -348,6 +372,7 @@ export default function ReportsSettings({
                 className="form-input"
                 value={targetGoal}
                 onChange={e => setTargetGoal(e.target.value)}
+                disabled={!isAdmin}
                 required
               />
             </div>
@@ -362,19 +387,22 @@ export default function ReportsSettings({
                 placeholder="e.g. 9848022334@ybl"
                 value={upiId}
                 onChange={e => setUpiId(e.target.value)}
+                disabled={!isAdmin}
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Admin Passcode (Security)</label>
-              <input 
-                type="password"
-                className="form-input"
-                value={adminPasscode}
-                onChange={e => setAdminPasscode(e.target.value)}
-                required
-              />
-            </div>
+            {isAdmin && (
+              <div className="form-group">
+                <label className="form-label">Admin Passcode (Security)</label>
+                <input 
+                  type="password"
+                  className="form-input"
+                  value={adminPasscode}
+                  onChange={e => setAdminPasscode(e.target.value)}
+                  required
+                />
+              </div>
+            )}
           </div>
 
           {savedMsg && (
@@ -383,9 +411,11 @@ export default function ReportsSettings({
             </p>
           )}
 
-          <button type="submit" className="btn btn-primary" style={{ gap: '6px', alignSelf: 'flex-start' }}>
-            <Save size={16} /> Save Group Settings
-          </button>
+          {isAdmin && (
+            <button type="submit" className="btn btn-primary" style={{ gap: '6px', alignSelf: 'flex-start' }}>
+              <Save size={16} /> Save Group Settings
+            </button>
+          )}
         </form>
       </div>
 
@@ -420,14 +450,16 @@ export default function ReportsSettings({
             </div>
           </button>
 
-          <label className="btn btn-secondary" style={{ padding: '14px', gap: '8px', cursor: 'pointer' }}>
-            <Upload size={18} style={{ color: '#06b6d4' }} />
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>Restore Backup</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Upload JSON database</div>
-            </div>
-            <input type="file" accept=".json" onChange={handleRestoreJSON} style={{ display: 'none' }} />
-          </label>
+          {isAdmin && (
+            <label className="btn btn-secondary" style={{ padding: '14px', gap: '8px', cursor: 'pointer' }}>
+              <Upload size={18} style={{ color: '#06b6d4' }} />
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>Restore Backup</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Upload JSON database</div>
+              </div>
+              <input type="file" accept=".json" onChange={handleRestoreJSON} style={{ display: 'none' }} />
+            </label>
+          )}
         </div>
       </div>
 
@@ -533,25 +565,27 @@ export default function ReportsSettings({
       </div>
 
       {/* DANGER ZONE: DELETE GROUP */}
-      <div className="glass-card" style={{ padding: '24px', border: '1px solid rgba(248, 113, 113, 0.4)', background: 'rgba(239, 68, 68, 0.05)' }}>
-        <h3 style={{ fontSize: '1.1rem', color: '#f87171', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <AlertTriangle size={18} /> Admin Danger Zone
-        </h3>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-          Permanently delete this festival group, all volunteer collection records, and daily expense logs.
-        </p>
+      {isAdmin && (
+        <div className="glass-card" style={{ padding: '24px', border: '1px solid rgba(248, 113, 113, 0.4)', background: 'rgba(239, 68, 68, 0.05)' }}>
+          <h3 style={{ fontSize: '1.1rem', color: '#f87171', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={18} /> Admin Danger Zone
+          </h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+            Permanently delete this festival group, all volunteer collection records, and daily expense logs.
+          </p>
 
-        <button 
-          onClick={() => setShowDeleteModal(true)}
-          className="btn btn-danger"
-          style={{ gap: '6px' }}
-        >
-          <Trash2 size={16} /> Delete Entire Group (Admin Only)
-        </button>
-      </div>
+          <button 
+            onClick={() => setShowDeleteModal(true)}
+            className="btn btn-danger"
+            style={{ gap: '6px' }}
+          >
+            <Trash2 size={16} /> Delete Entire Group (Admin Only)
+          </button>
+        </div>
+      )}
 
       {/* DELETE GROUP PASSCODE MODAL */}
-      {showDeleteModal && (
+      {isAdmin && showDeleteModal && (
         <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
           <div className="modal-container" style={{ maxWidth: '360px' }} onClick={e => e.stopPropagation()}>
             <h4 style={{ fontSize: '1.1rem', color: '#f87171', marginBottom: '6px' }}>
