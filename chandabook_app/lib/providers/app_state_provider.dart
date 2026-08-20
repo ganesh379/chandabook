@@ -61,7 +61,18 @@ class AppStateProvider extends ChangeNotifier {
     final group = activeGroup;
     if (uid == null || group == null) return false;
     final member = group.memberAccounts.where((m) => m.uid == uid).firstOrNull;
-    return member?.role == 'admin';
+    if (member != null) {
+      return member.role == 'admin';
+    }
+    // Fallback: If createdBy matches current user UID
+    if (group.createdBy != null && group.createdBy == uid) {
+      return true;
+    }
+    // Fallback: If legacy group has no memberAccounts configured yet, allow admin access
+    if (group.memberAccounts.isEmpty) {
+      return true;
+    }
+    return false;
   }
 
   GroupModel? get activeGroup {

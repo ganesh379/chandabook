@@ -132,7 +132,10 @@ export default function App() {
   const isAdmin = (() => {
     if (!currentUser?.uid || !activeGroup) return false;
     const member = (activeGroup.memberAccounts || []).find(m => m.uid === currentUser.uid);
-    return member?.role === 'admin';
+    if (member) return member.role === 'admin';
+    if (activeGroup.createdBy && activeGroup.createdBy === currentUser.uid) return true;
+    if (!activeGroup.memberAccounts || activeGroup.memberAccounts.length === 0) return true;
+    return false;
   })();
 
   // URL Query Param Invite Link Detector (?inviteMember=CODE or ?join=CODE)
