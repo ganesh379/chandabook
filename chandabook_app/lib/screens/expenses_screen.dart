@@ -32,6 +32,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final state = context.watch<AppStateProvider>();
     final group = state.activeGroup;
     final financials = state.financials;
+    final isAdmin = state.isCurrentUserAdmin;
 
     if (group == null) {
       return const Center(child: CircularProgressIndicator());
@@ -74,6 +75,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         ),
                       ],
                     ),
+                    if (isAdmin)
                     ElevatedButton.icon(
                       onPressed: () => _openAddExpenseModal(context),
                       style: ElevatedButton.styleFrom(
@@ -165,6 +167,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textMuted),
                         ),
                         const SizedBox(height: 12),
+                        if (isAdmin)
                         OutlinedButton.icon(
                           onPressed: () => _openAddExpenseModal(context),
                           icon: const Icon(Icons.add, size: 16),
@@ -179,7 +182,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     itemCount: expenses.length,
                     itemBuilder: (context, index) {
                       final exp = expenses[index];
-                      return _buildExpenseTile(context, exp, state);
+                      return _buildExpenseTile(context, exp, state, isAdmin);
                     },
                   ),
           ),
@@ -188,7 +191,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  Widget _buildExpenseTile(BuildContext context, ExpenseModel exp, AppStateProvider state) {
+  Widget _buildExpenseTile(BuildContext context, ExpenseModel exp, AppStateProvider state, bool isAdmin) {
     final cat = AppConstants.getExpenseCategory(exp.category);
 
     return Padding(
@@ -238,6 +241,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
+                if (isAdmin)
                 IconButton(
                   icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFE57373)),
                   padding: EdgeInsets.zero,

@@ -51,6 +51,7 @@ class _PledgesScreenState extends State<PledgesScreen> with SingleTickerProvider
     final state = context.watch<AppStateProvider>();
     final group = state.activeGroup;
     final financials = state.financials;
+    final isAdmin = state.isCurrentUserAdmin;
 
     if (group == null) {
       return const Center(child: CircularProgressIndicator());
@@ -63,6 +64,7 @@ class _PledgesScreenState extends State<PledgesScreen> with SingleTickerProvider
       appBar: AppBar(
         title: const Text('Pledges & Promises'),
         actions: [
+          if (isAdmin)
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
             tooltip: 'Add Pledge',
@@ -107,19 +109,21 @@ class _PledgesScreenState extends State<PledgesScreen> with SingleTickerProvider
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildPledgesList(context, pending, group, isPending: true),
-                _buildPledgesList(context, fulfilled, group, isPending: false),
+                _buildPledgesList(context, pending, group, isPending: true, isAdmin: isAdmin),
+                _buildPledgesList(context, fulfilled, group, isPending: false, isAdmin: isAdmin),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAddPledgeModal(context),
-        backgroundColor: AppTheme.primarySaffron,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('New Pledge', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ),
+      floatingActionButton: isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: () => _openAddPledgeModal(context),
+              backgroundColor: AppTheme.primarySaffron,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('New Pledge', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            )
+          : null,
     );
   }
 
@@ -133,7 +137,7 @@ class _PledgesScreenState extends State<PledgesScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildPledgesList(BuildContext context, List<PledgeModel> list, dynamic group, {required bool isPending}) {
+  Widget _buildPledgesList(BuildContext context, List<PledgeModel> list, dynamic group, {required bool isPending, required bool isAdmin}) {
     if (list.isEmpty) {
       return Center(
         child: Column(

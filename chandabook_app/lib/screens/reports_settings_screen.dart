@@ -7,7 +7,6 @@ import '../core/utils/date_formatter.dart';
 import '../core/utils/financial_calculator.dart';
 import '../widgets/festive_card.dart';
 import '../services/pdf_service.dart';
-import '../services/whatsapp_service.dart';
 import 'analytics_screen.dart';
 import 'daily_ledger_screen.dart';
 import 'pledges_screen.dart';
@@ -34,6 +33,7 @@ class ReportsSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppStateProvider>();
     final group = state.activeGroup;
+    final isAdmin = state.isCurrentUserAdmin;
 
     if (group == null) {
       return const Center(child: CircularProgressIndicator());
@@ -77,6 +77,7 @@ class ReportsSettingsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (isAdmin)
                 IconButton(
                   icon: const Icon(Icons.edit_outlined, color: AppTheme.primarySaffron),
                   tooltip: 'Edit Utsav Details',
@@ -243,16 +244,14 @@ class ReportsSettingsScreen extends StatelessWidget {
             title: 'Daily Committee WhatsApp Broadcast',
             subtitle: '1-tap financial status report for WhatsApp committee group',
             onTap: () {
-              if (group != null) {
-                final fin = FinancialCalculator.compute(group);
-                final summary = '📢 *${group.name} — Committee Daily Summary*\n\n'
-                    '💰 *Total Collections:* ${DateFormatter.formatCurrency(fin.totalCollected)}\n'
-                    '🧾 *Total Expenses:* ${DateFormatter.formatCurrency(fin.totalExpenses)}\n'
-                    '💵 *Current In-Hand:* ${DateFormatter.formatCurrency(fin.netBalance)}\n'
-                    '👥 *Active Volunteers:* ${group.members.length}\n\n'
-                    '✨ _Managed securely with ChandaBook_';
-                Share.share(summary);
-              }
+              final fin = FinancialCalculator.compute(group);
+              final summary = '📢 *${group.name} — Committee Daily Summary*\n\n'
+                  '💰 *Total Collections:* ${DateFormatter.formatCurrency(fin.totalCollected)}\n'
+                  '🧾 *Total Expenses:* ${DateFormatter.formatCurrency(fin.totalExpenses)}\n'
+                  '💵 *Current In-Hand:* ${DateFormatter.formatCurrency(fin.netBalance)}\n'
+                  '👥 *Active Volunteers:* ${group.members.length}\n\n'
+                  '✨ _Managed securely with ChandaBook_';
+              Share.share(summary);
             },
           ),
           const SizedBox(height: 10),

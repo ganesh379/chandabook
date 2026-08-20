@@ -54,6 +54,16 @@ class AppStateProvider extends ChangeNotifier {
   bool get authResolved => _authResolved;
   String? get pendingInviteCode => _pendingInviteCode;
 
+  /// Returns true if the currently signed-in user has the 'admin' role in
+  /// the active group. The group creator is always admin; joiners are volunteers.
+  bool get isCurrentUserAdmin {
+    final uid = _firebaseUser?.uid;
+    final group = activeGroup;
+    if (uid == null || group == null) return false;
+    final member = group.memberAccounts.where((m) => m.uid == uid).firstOrNull;
+    return member?.role == 'admin';
+  }
+
   GroupModel? get activeGroup {
     if (_activeGroupId != null && _allGroups.containsKey(_activeGroupId)) {
       return _allGroups[_activeGroupId];

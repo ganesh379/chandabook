@@ -25,6 +25,7 @@ class _ChandaListScreenState extends State<ChandaListScreen> {
   Widget build(BuildContext context) {
     final state = context.watch<AppStateProvider>();
     final group = state.activeGroup;
+    final isAdmin = state.isCurrentUserAdmin;
 
     if (group == null) {
       return const Center(child: CircularProgressIndicator());
@@ -152,7 +153,7 @@ class _ChandaListScreenState extends State<ChandaListScreen> {
                     itemCount: collections.length,
                     itemBuilder: (context, index) {
                       final col = collections[index];
-                      return _buildDonationItem(context, group, col, state);
+                      return _buildDonationItem(context, group, col, state, isAdmin);
                     },
                   ),
           ),
@@ -180,7 +181,7 @@ class _ChandaListScreenState extends State<ChandaListScreen> {
     );
   }
 
-  Widget _buildDonationItem(BuildContext context, dynamic group, CollectionModel col, AppStateProvider state) {
+  Widget _buildDonationItem(BuildContext context, dynamic group, CollectionModel col, AppStateProvider state, bool isAdmin) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: FestiveCard(
@@ -284,33 +285,35 @@ class _ChandaListScreenState extends State<ChandaListScreen> {
                         WhatsAppService.launchWhatsApp(col.phone, msg);
                       },
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFE57373)),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      tooltip: 'Delete',
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Delete Donation?'),
-                            content: Text('Remove receipt ${col.receiptNo} for ${col.donorName}?'),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                child: const Text('Delete'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          state.deleteCollection(col.id);
-                        }
-                      },
-                    ),
+                    if (isAdmin) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFE57373)),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Delete',
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Delete Donation?'),
+                              content: Text('Remove receipt ${col.receiptNo} for ${col.donorName}?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            state.deleteCollection(col.id);
+                          }
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ],
